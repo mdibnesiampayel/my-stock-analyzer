@@ -16,9 +16,9 @@ export function NewsCard({ item, onOpen }: { item: NewsItem; onOpen?: () => void
             <span>{timeAgo(item.publishedAt)}</span>
           </div>
           <h3 className="mt-1 text-[14.5px] font-semibold leading-snug">{item.title}</h3>
-          {item.summary?.short && (
-            <p className="mt-1.5 line-clamp-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-              {item.summary.short}
+          {(item.description || item.summary?.short) && (
+            <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
+              {item.description || item.summary?.short}
             </p>
           )}
           <div className="mt-2 flex flex-wrap items-center gap-2">

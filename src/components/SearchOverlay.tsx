@@ -124,12 +124,6 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
     };
   }, [debounced]);
 
-  const go = (symbol: string) => {
-    addRecent(symbol);
-    onClose();
-    nav(`/stock/${encodeURIComponent(symbol)}`);
-  };
-
   const term = q.trim();
   const resolveExact = () => {
     if (!term) return "";
@@ -146,9 +140,22 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   const exactHit = hits.find((h) => h.symbol.toUpperCase() === exactSymbol.toUpperCase());
   const related = hits.filter((h) => h.symbol.toUpperCase() !== exactSymbol.toUpperCase());
 
+  const goStock = (symbol: string) => {
+    addRecent(symbol);
+    onClose();
+    nav(`/stock/${encodeURIComponent(symbol)}`);
+  };
+
+  const goResults = () => {
+    if (!term) return;
+    if (exactSymbol) addRecent(exactSymbol);
+    onClose();
+    nav(`/search?q=${encodeURIComponent(term)}`);
+  };
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (exactSymbol) go(exactSymbol);
+    goResults();
   };
 
   if (!open) return null;
@@ -170,27 +177,37 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
           </button>
         </form>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          {!q.trim() && <RecentList onPick={go} />}
+          {!term && <RecentList onPick={goStock} />}
           {loading && (
             <div className="px-3 py-4 text-sm" style={{ color: "var(--muted)" }}>
               Searching…
             </div>
           )}
-          {!loading && q.trim() && hits.length === 0 && news.length === 0 && (
-            <div className="px-3 py-6 text-center text-sm" style={{ color: "var(--muted)" }}>
-              No matching companies or news for “{q}”.
-            </div>
-          )}
-          {hits.length > 0 && (
+          {term && (
             <div className="mb-3">
               <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
                 Stocks
               </div>
-              {hits.map((h) => (
+              <button
+                type="button"
+                onClick={goResults}
+                className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-[var(--bg-2)]"
+              >
+                <Avatar symbol={exactSymbol || term} logo={exactHit?.logo} size={36} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold">{term}</div>
+                  <div className="text-[12px]" style={{ color: "var(--muted)" }}>
+                    {exactHit
+                      ? `${exactHit.symbol} · See all results`
+                      : `Search results for ${term}`}
+                  </div>
+                </div>
+              </button>
+              {related.map((h) => (
                 <button
                   key={h.symbol}
                   type="button"
-                  onClick={() => go(h.symbol)}
+                  onClick={() => goStock(h.symbol)}
                   className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-[var(--bg-2)]"
                 >
                   <Avatar symbol={h.symbol} logo={h.logo} size={36} />

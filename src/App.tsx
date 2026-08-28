@@ -14,6 +14,7 @@ import Market from "./pages/Market";
 import Watchlist from "./pages/Watchlist";
 import SettingsPage from "./pages/Settings";
 import ApiKeys from "./pages/ApiKeys";
+import SearchPage from "./pages/Search";
 
 export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -92,6 +93,7 @@ export default function App() {
           <div className="mx-auto w-full max-w-[1120px] px-4 py-3 md:px-8 md:pb-10">
             <Routes>
               <Route path="/" element={<Home onSearch={() => setSearchOpen(true)} />} />
+              <Route path="/search" element={<SearchPage />} />
               <Route path="/market" element={<Market />} />
               <Route path="/news" element={<News />} />
               <Route path="/watchlist" element={<Watchlist />} />
