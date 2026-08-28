@@ -128,7 +128,7 @@ export default function Settings() {
       </section>
 
       <p className="px-1 text-[11px] leading-relaxed" style={{ color: "var(--muted)" }}>
-        StockLens Version 1.0 · Favourites, Follows and settings are stored locally. Uninstalling the app or changing
+        My Stock Analyzer Version 1.0 · Favourites, Follows and settings are stored locally. Uninstalling the app or changing
         devices may clear them. Cloud sync is designed for a later version.
       </p>
     </div>
@@ -185,7 +185,7 @@ function About() {
       <Wordmark />
       <p className="font-medium">Smart Metrics. Real-Time Insights.</p>
       <p>
-        StockLens is a research app for beginner and intermediate investors. It is built to answer three questions: what
+        My Stock Analyzer is a research app for beginner and intermediate investors. It is built to answer three questions: what
         is happening, how good is this company, and is the stock interesting at this price.
       </p>
       <p>Version 1.0.0 · No login required.</p>
@@ -207,7 +207,7 @@ function Privacy() {
       </p>
       <p>
         Market quotes, filings and headlines are requested from public data sources in order to display the product.
-        StockLens does not sell personal information.
+        My Stock Analyzer does not sell personal information.
       </p>
     </>
   );
@@ -217,7 +217,7 @@ function Terms() {
   return (
     <>
       <p>
-        StockLens is an informational research tool. Nothing in the app is an offer, solicitation, or recommendation to
+        My Stock Analyzer is an informational research tool. Nothing in the app is an offer, solicitation, or recommendation to
         buy or sell any security.
       </p>
       <p>

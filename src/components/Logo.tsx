@@ -17,11 +17,11 @@ export function Mark({ size = 28 }: { size?: number }) {
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
-    <div className="flex items-center gap-2.5">
+    <div className="flex min-w-0 items-center gap-2.5">
       <Mark size={compact ? 26 : 30} />
-      <div className="leading-tight">
-        <div className="text-[15px] font-semibold tracking-tight" style={{ color: "var(--text)" }}>
-          StockLens
+      <div className="min-w-0 leading-tight">
+        <div className="truncate text-[13px] font-semibold tracking-tight sm:text-[15px]" style={{ color: "var(--text)" }}>
+          My Stock Analyzer
         </div>
         {!compact && (
           <div className="text-[10px] font-medium uppercase tracking-[0.14em]" style={{ color: "var(--muted)" }}>

@@ -6,7 +6,7 @@ export function useApi<T>(path: string | null) {
   const [loading, setLoading] = useState(Boolean(path));
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (signal?: AbortSignal) => {
     if (!path) {
       setLoading(false);
       return;
@@ -14,20 +14,24 @@ export function useApi<T>(path: string | null) {
     setLoading(true);
     setError(null);
     try {
-      const json = await api<T>(path);
+      const json = await api<T>(path, { signal });
       setData(json);
     } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") return;
+      if (err instanceof Error && err.name === "AbortError") return;
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {
-      setLoading(false);
+      if (!signal?.aborted) setLoading(false);
     }
   }, [path]);
 
   useEffect(() => {
-    load();
+    const ac = new AbortController();
+    void load(ac.signal);
+    return () => ac.abort();
   }, [load]);
 
-  return { data, loading, error, reload: load, setData };
+  return { data, loading, error, reload: () => load(), setData };
 }
 
 export function useDebounced<T>(value: T, delay = 220) {

@@ -37,7 +37,7 @@ export function CandleChart({
       handleScroll: true,
       handleScale: true,
       width: wrap.current.clientWidth,
-      height: 260,
+      height: wrap.current.clientHeight || (window.innerWidth >= 1024 ? 380 : 240),
     });
     const series = chart.addCandlestickSeries({
       upColor: "#1f8df9",
@@ -50,7 +50,10 @@ export function CandleChart({
     seriesRef.current = series;
     const ro = new ResizeObserver(() => {
       if (!wrap.current) return;
-      chart.applyOptions({ width: wrap.current.clientWidth });
+      chart.applyOptions({
+        width: wrap.current.clientWidth,
+        height: wrap.current.clientHeight || 240,
+      });
     });
     ro.observe(wrap.current);
     return () => {

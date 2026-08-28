@@ -83,7 +83,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/30 p-3 pt-[8vh] backdrop-blur-[2px]">
-      <div className="card w-full max-w-reading overflow-hidden">
+      <div className="card w-full max-w-xl overflow-hidden">
         <div className="flex items-center gap-2 border-b px-3 py-2" style={{ borderColor: "var(--line)" }}>
           <Search size={18} style={{ color: "var(--muted)" }} />
           <input

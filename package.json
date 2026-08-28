@@ -1,5 +1,5 @@
 {
-  "name": "stocklens",
+  "name": "my-stock-analyzer",
   "private": true,
   "version": "1.0.0",
   "type": "module",
@@ -7,6 +7,7 @@
     "server": "node server/index.js",
     "client": "vite",
     "build": "vite build",
+    "start": "node server/index.js",
     "preview": "vite preview --host 0.0.0.0 --port 5173"
   },
   "dependencies": {

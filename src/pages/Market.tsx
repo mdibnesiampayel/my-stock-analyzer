@@ -20,7 +20,7 @@ export default function Market() {
 
       {overview.error && <ErrorBox message={overview.error} onRetry={overview.reload} />}
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
         {(overview.data?.indices || []).map((ix) => (
           <div key={ix.symbol} className="card p-4">
             <div className="text-[12px] font-medium" style={{ color: "var(--muted)" }}>
@@ -35,10 +35,12 @@ export default function Market() {
         {overview.loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
       </div>
 
-      <ListBlock title="Hot today" to="/?tab=hot" rows={lists.data?.hot} loading={lists.loading} />
-      <ListBlock title="Gainers" to="/?tab=gainers" rows={lists.data?.gainers} loading={lists.loading} />
-      <ListBlock title="Losers" to="/?tab=losers" rows={lists.data?.losers} loading={lists.loading} />
-      <ListBlock title="Newly listed" to="/?tab=new" rows={lists.data?.new} loading={lists.loading} extra />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <ListBlock title="Hot today" rows={lists.data?.hot} loading={lists.loading} />
+        <ListBlock title="Gainers" rows={lists.data?.gainers} loading={lists.loading} />
+        <ListBlock title="Losers" rows={lists.data?.losers} loading={lists.loading} />
+        <ListBlock title="Newly listed" rows={lists.data?.new} loading={lists.loading} extra />
+      </div>
     </div>
   );
 }
@@ -50,7 +52,6 @@ function ListBlock({
   extra,
 }: {
   title: string;
-  to: string;
   rows?: Quote[];
   loading: boolean;
   extra?: boolean;

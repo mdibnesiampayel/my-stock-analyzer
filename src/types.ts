@@ -106,6 +106,18 @@ export interface ChecklistItem {
   max: number;
 }
 
+export interface AnalysisReport {
+  business: string;
+  strengths: string[];
+  weaknesses: string[];
+  growth: string;
+  financialHealth: string;
+  competitiveAdvantage: string;
+  risks: string[];
+  valuation: string;
+  verdict: string;
+}
+
 export interface Analysis {
   score: number;
   label: string;
@@ -114,6 +126,9 @@ export interface Analysis {
   bull: string[];
   bear: string[];
   disclaimer: string;
+  report?: AnalysisReport;
+  source?: "filings" | "llm";
+  dataLimited?: boolean;
 }
 
 export interface NewsItem {

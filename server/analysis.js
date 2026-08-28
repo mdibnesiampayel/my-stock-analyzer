@@ -135,6 +135,23 @@ export function analyzeStock({ quote, profile, fundamentals, insights, peers }) 
   if (!bull.length) bull.push("The available filings still show an operating business worth monitoring.");
   if (!bear.length) bear.push("Even strong companies can be expensive or face unexpected competition.");
 
+  const byId = Object.fromEntries(items.map((it) => [it.id, it]));
+  const missingCore = !lastVal(fundamentals?.revenue) && !lastVal(fundamentals?.netIncome);
+  const report = {
+    business: byId.business?.reason || profile?.about || "A clear business description was not available in public data.",
+    strengths: bull,
+    weaknesses: bear,
+    growth: [byId.revenue?.reason, byId.profit?.reason].filter(Boolean).join(" "),
+    financialHealth: [byId.debt?.reason, byId.fcf?.reason].filter(Boolean).join(" "),
+    competitiveAdvantage: byId.moat?.reason || "Competitive position is not obvious from the available filings.",
+    risks: items.filter((x) => x.rating === "risk").map((x) => x.reason).slice(0, 4),
+    valuation: byId.value?.reason || "Valuation could not be computed from the available figures.",
+    verdict: `${score >= 80 ? "Strong fundamentals" : score >= 65 ? "Solid, with caveats" : score >= 50 ? "Mixed picture" : "Higher risk"}. Fundamental score ${score}/100. ${clip(thesis, 220)}`,
+  };
+  if (!report.risks.length) {
+    report.risks = ["Even a healthy company can be hurt by competition, a high price, or a change in demand."];
+  }
+
   return {
     score,
     label: score >= 80 ? "Strong fundamentals" : score >= 65 ? "Solid, with caveats" : score >= 50 ? "Mixed picture" : "Higher risk",
@@ -142,8 +159,11 @@ export function analyzeStock({ quote, profile, fundamentals, insights, peers }) 
     thesis,
     bull,
     bear,
+    report,
+    source: "filings",
+    dataLimited: Boolean(missingCore),
     disclaimer:
-      "This is an automated research snapshot based on public filings and market data. It is not a recommendation to buy or sell.",
+      "This analysis uses public filings and market data. It is not a recommendation to buy or sell.",
   };
 }
 

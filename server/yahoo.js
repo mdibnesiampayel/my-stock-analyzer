@@ -240,6 +240,23 @@ export async function getRssNews(symbol) {
   });
 }
 
+export async function getGoogleNews(query) {
+  const q = String(query || "").trim();
+  if (!q) return [];
+  return cached(`gnews:${q}`, TTL.news, async () => {
+    try {
+      const url = `https://news.google.com/rss/search?q=${encodeURIComponent(q)}&hl=en-US&gl=US&ceid=US:en`;
+      const xml = await fetchText(url, { timeout: 12000, retries: 1 });
+      return parseRss(xml, null).map((n) => ({
+        ...n,
+        publisher: n.publisher && n.publisher !== "Yahoo Finance" ? n.publisher : "Google News",
+      }));
+    } catch {
+      return [];
+    }
+  });
+}
+
 function parseRss(xml, symbol) {
   const items = [];
   const parts = xml.split(/<item>/i).slice(1);

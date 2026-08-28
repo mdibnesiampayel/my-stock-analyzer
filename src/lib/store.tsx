@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { DEFAULT_SETTINGS, type Settings } from "../types";
 
 const FAV_KEY = "stocklens.favourites";
@@ -56,6 +56,45 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme);
   }, [settings.darkMode]);
 
+  const toggleFavourite = useCallback((symbol: string) => {
+    const s = symbol.toUpperCase();
+    setFavourites((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [s, ...prev]));
+  }, []);
+
+  const toggleFollow = useCallback((symbol: string) => {
+    const s = symbol.toUpperCase();
+    setFollows((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [s, ...prev]));
+  }, []);
+
+  const addRecent = useCallback((symbol: string) => {
+    const s = symbol.toUpperCase();
+    setRecent((prev) => {
+      if (prev[0] === s) return prev;
+      return [s, ...prev.filter((x) => x !== s)].slice(0, 8);
+    });
+  }, []);
+
+  const updateSettings = useCallback((patch: Partial<Settings>) => {
+    setSettings((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const markNewsSeen = useCallback((ids: string[]) => {
+    setSeenNews((prev) => {
+      const set = new Set(prev);
+      let changed = false;
+      ids.forEach((id) => {
+        if (!set.has(id)) {
+          set.add(id);
+          changed = true;
+        }
+      });
+      return changed ? [...set] : prev;
+    });
+  }, []);
+
+  const isFavourite = useCallback((symbol: string) => favourites.includes(symbol.toUpperCase()), [favourites]);
+  const isFollowed = useCallback((symbol: string) => follows.includes(symbol.toUpperCase()), [follows]);
+
   const value = useMemo<Store>(
     () => ({
       favourites,
@@ -63,29 +102,28 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       recent,
       settings,
       seenNews,
-      toggleFavourite: (symbol) => {
-        const s = symbol.toUpperCase();
-        setFavourites((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [s, ...prev]));
-      },
-      toggleFollow: (symbol) => {
-        const s = symbol.toUpperCase();
-        setFollows((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [s, ...prev]));
-      },
-      isFavourite: (symbol) => favourites.includes(symbol.toUpperCase()),
-      isFollowed: (symbol) => follows.includes(symbol.toUpperCase()),
-      addRecent: (symbol) => {
-        const s = symbol.toUpperCase();
-        setRecent((prev) => [s, ...prev.filter((x) => x !== s)].slice(0, 8));
-      },
-      updateSettings: (patch) => setSettings((prev) => ({ ...prev, ...patch })),
-      markNewsSeen: (ids) =>
-        setSeenNews((prev) => {
-          const set = new Set(prev);
-          ids.forEach((id) => set.add(id));
-          return [...set];
-        }),
+      toggleFavourite,
+      toggleFollow,
+      isFavourite,
+      isFollowed,
+      addRecent,
+      updateSettings,
+      markNewsSeen,
     }),
-    [favourites, follows, recent, settings, seenNews]
+    [
+      favourites,
+      follows,
+      recent,
+      settings,
+      seenNews,
+      toggleFavourite,
+      toggleFollow,
+      isFavourite,
+      isFollowed,
+      addRecent,
+      updateSettings,
+      markNewsSeen,
+    ]
   );
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;

@@ -1,8 +1,8 @@
-# StockLens
+# My Stock Analyzer
 
 **Smart Metrics. Real-Time Insights.**
 
-A mobile-first stock research app for beginner and intermediate investors. Search a company, read the business, check fundamentals, get an explainable score, compare peers, and follow news — without a Bloomberg-style terminal.
+My Stock Analyzer is a mobile-first stock research app for beginner and intermediate investors. Search a company, read the business, check fundamentals, get an explainable score, compare peers, and follow news — without a Bloomberg-style terminal.
 
 Version 1 does **not** require login. Favourites and Follows are stored on the device.
 
@@ -18,6 +18,25 @@ npm run client
 - App: `http://localhost:5173`
 
 Open the Vite URL. `/api` is proxied to the backend.
+
+### Phone (Termux)
+
+Keep the project in Termux home (`$HOME`), not shared storage. Then:
+
+```bash
+pkg update && pkg install nodejs-lts git
+cd ~
+git clone https://github.com/mdibnesiampayel/my-stock-analyzer.git
+cd my-stock-analyzer
+npm install
+termux-wake-lock
+npm run build
+npm start
+```
+
+Open Chrome or Firefox on the same phone: `http://127.0.0.1:3001`
+
+Leave Termux running. New session: from the Termux hamburger menu. Stop with `Ctrl+C`, then `termux-wake-unlock`.
 
 ## What it does
 

@@ -1,3 +1,6 @@
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
 import express from "express";
 import {
   searchYahoo,
@@ -9,19 +12,21 @@ import {
   getInsights,
   getNewsForQuery,
   getRssNews,
+  getGoogleNews,
   getIpoCalendar,
   RANGE_MAP,
   logoUrl,
 } from "./yahoo.js";
 import { getSubmissions, getFundamentals, getWikiAbout, yoy, lookupCik } from "./sec.js";
 import { analyzeStock, classifyNews, NEWS_CATEGORIES, peerSymbols, money } from "./analysis.js";
+import { enhanceReport } from "./llm.js";
 import { cached, TTL, mapLimit, yahooJson } from "./http.js";
 
 const app = express();
 app.disable("x-powered-by");
 app.use(express.json({ limit: "512kb" }));
 
-app.use((req, res, next) => {
+app.use("/api", (_req, res, next) => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
@@ -35,7 +40,7 @@ const INDICES = [
 ];
 
 app.get("/api/health", (_req, res) => {
-  res.json({ ok: true, name: "StockLens", time: Date.now() });
+  res.json({ ok: true, name: "My Stock Analyzer", time: Date.now() });
 });
 
 app.get("/api/search", async (req, res) => {
@@ -180,6 +185,7 @@ app.get("/api/stock/:symbol/analysis", async (req, res) => {
       about: wiki?.extract,
       sicDescription: submissions?.sicDescription,
     };
+    const metrics = deriveMetrics(chart.quote, fundamentals, insights);
     const analysis = analyzeStock({
       quote: chart.quote,
       profile,
@@ -187,7 +193,22 @@ app.get("/api/stock/:symbol/analysis", async (req, res) => {
       insights,
       peers: [],
     });
-    res.json({ analysis, metrics: deriveMetrics(chart.quote, fundamentals, insights) });
+    const llm = await enhanceReport(analysis, { quote: chart.quote, profile, metrics });
+    if (llm) {
+      analysis.report = {
+        business: llm.business || analysis.report.business,
+        strengths: llm.strengths?.length ? llm.strengths : analysis.report.strengths,
+        weaknesses: llm.weaknesses?.length ? llm.weaknesses : analysis.report.weaknesses,
+        growth: llm.growth || analysis.report.growth,
+        financialHealth: llm.financialHealth || analysis.report.financialHealth,
+        competitiveAdvantage: llm.competitiveAdvantage || analysis.report.competitiveAdvantage,
+        risks: llm.risks?.length ? llm.risks : analysis.report.risks,
+        valuation: llm.valuation || analysis.report.valuation,
+        verdict: llm.verdict || analysis.report.verdict,
+      };
+      analysis.source = "llm";
+    }
+    res.json({ analysis, metrics });
   } catch (err) {
     fail(res, err);
   }
@@ -286,10 +307,11 @@ function fail(res, err) {
 
 function equityOnly(list) {
   return (list || []).filter((q) => {
-    const t = (q.quoteType || "EQUITY").toUpperCase();
+    const s = String(q.symbol || "");
+    if (!s) return false;
+    if (s.includes("=") || s.startsWith("^") || /-USD$/i.test(s)) return false;
+    const t = (q.quoteType || "").toUpperCase();
     if (t && t !== "EQUITY") return false;
-    const s = q.symbol || "";
-    if (s.includes("=") || s.startsWith("^")) return false;
     return true;
   });
 }
@@ -470,25 +492,35 @@ function lastAnnual(s) {
 
 async function companyNews(symbol) {
   return cached(`cnews:${symbol}`, TTL.news, async () => {
-    const [searchNews, rss] = await Promise.all([
-      getNewsForQuery(symbol, 25).catch(() => []),
+    const [searchNews, rss, gnews, earn] = await Promise.all([
+      getNewsForQuery(symbol, 40).catch(() => []),
       getRssNews(symbol).catch(() => []),
+      getGoogleNews(`${symbol} stock`).catch(() => []),
+      getNewsForQuery(`${symbol} earnings`, 20).catch(() => []),
     ]);
-    return dedupeNews([...searchNews, ...rss]).map(classifyNews);
+    return dedupeNews([...searchNews, ...rss, ...gnews, ...earn]).map(classifyNews);
   });
 }
 
 async function newsForSymbols(symbols) {
   const lists = await mapLimit(symbols.slice(0, 12), 4, (s) => companyNews(s));
-  return dedupeNews(lists.flat().filter(Boolean)).map(classifyNews);
+  return dedupeNews(lists.flat().filter(Boolean));
 }
 
 async function marketNews() {
   return cached("news:market", TTL.news, async () => {
-    const queries = ["NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "JPM", "stock market"];
-    const lists = await mapLimit(queries, 4, (q) => getNewsForQuery(q, 8));
-    const rss = await getRssNews("^GSPC").catch(() => []);
-    return dedupeNews([...lists.flat(), ...rss]).map(classifyNews);
+    const queries = [
+      "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "JPM",
+      "stock market", "Federal Reserve", "earnings", "S&P 500",
+    ];
+    const lists = await mapLimit(queries, 4, (q) => getNewsForQuery(q, 12));
+    const rss = await Promise.all(
+      ["^GSPC", "AAPL", "MSFT", "NVDA", "AMZN"].map((s) => getRssNews(s).catch(() => []))
+    );
+    const gnews = await Promise.all(
+      ["US stock market", "Wall Street", "S&P 500", "Nasdaq"].map((q) => getGoogleNews(q).catch(() => []))
+    );
+    return dedupeNews([...lists.flat(), ...rss.flat(), ...gnews.flat()]).map(classifyNews);
   });
 }
 
@@ -506,7 +538,18 @@ function dedupeNews(items) {
   return out;
 }
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const distDir = path.join(__dirname, "..", "dist");
+if (fs.existsSync(path.join(distDir, "index.html"))) {
+  app.use(express.static(distDir, { index: false, maxAge: "1h" }));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api")) return next();
+    res.sendFile(path.join(distDir, "index.html"));
+  });
+}
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, "0.0.0.0", () => {
-  console.log(`StockLens API on ${PORT}`);
+  const mode = fs.existsSync(path.join(distDir, "index.html")) ? "app + API" : "API only";
+  console.log(`My Stock Analyzer ${mode} on http://127.0.0.1:${PORT}`);
 });
