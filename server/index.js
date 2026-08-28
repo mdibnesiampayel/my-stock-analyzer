@@ -50,25 +50,9 @@ app.get("/api/search", async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
     if (q.length < 1) return res.json({ quotes: [], news: [] });
-    const data = await searchYahoo(q, { quotes: 16, news: 10 });
-    const quotes = (data.quotes || []).slice(0, 12);
-    const top = quotes.filter((x) => (x.quoteType || "EQUITY").toUpperCase() === "EQUITY").slice(0, 2);
-    const extra = await Promise.all(
-      top.map((x) =>
-        Promise.all([
-          getRssNews(x.symbol).catch(() => []),
-          getGoogleNews(`${x.symbol} ${x.name || ""} stock`).catch(() => []),
-        ]).then((parts) => parts.flat())
-      )
-    );
-    const merged = dedupeNews([...(data.news || []), ...extra.flat()]).slice(0, 6);
-    const news = await mapLimit(merged, 3, async (n) => {
-      const raw = n.summaryRaw || "";
-      const enough = raw.split(/\s+/).filter(Boolean).length >= 150;
-      const description = enough ? clipWords(raw, 200) : await articleDescription(n.link, raw || n.title || "");
-      return { ...n, description, title: n.title };
-    });
-    res.json({ quotes, news: (news || []).filter(Boolean) });
+    const data = await searchYahoo(q, { quotes: 20, news: 0 });
+    const quotes = (data.quotes || []).slice(0, 16);
+    res.json({ quotes, news: [] });
   } catch (err) {
     fail(res, err);
   }
@@ -334,15 +318,15 @@ app.get("/api/stock/:symbol/news", async (req, res) => {
   try {
     const symbol = req.params.symbol.toUpperCase();
     const category = String(req.query.category || "all");
-    const offset = Number(req.query.offset || 0);
-    const limit = Math.min(20, Number(req.query.limit || 20));
-    const items = await companyNews(symbol);
-    const filtered = items.filter((n) => category === "all" || n.category === category);
+    const offset = Math.max(0, Number(req.query.offset || 0) || 0);
+    const limit = Math.min(20, Math.max(1, Number(req.query.limit || 20) || 20));
+    const pred = (n) => category === "all" || n.category === category;
+    const page = await takeNews(`cnews:${symbol}`, companyNewsStages(symbol), offset, limit, pred);
     res.json({
-      items: filtered.slice(offset, offset + limit),
+      items: page.items,
       offset,
       limit,
-      hasMore: offset + limit < filtered.length,
+      hasMore: page.hasMore,
       categories: NEWS_CATEGORIES.map((c) => ({ id: c.id, label: c.label })),
     });
   } catch (err) {
@@ -352,17 +336,27 @@ app.get("/api/stock/:symbol/news", async (req, res) => {
 
 app.get("/api/news", async (req, res) => {
   try {
+    const q = String(req.query.q || "").trim();
     const symbols = String(req.query.symbols || "")
       .split(",")
       .map((s) => s.trim().toUpperCase())
       .filter(Boolean);
-    const offset = Number(req.query.offset || 0);
-    const limit = Math.min(20, Number(req.query.limit || 20));
-    const personalized = symbols.length > 0;
-    const items = personalized ? await newsForSymbols(symbols) : await marketNews();
+    const offset = Math.max(0, Number(req.query.offset || 0) || 0);
+    const limit = Math.min(20, Math.max(1, Number(req.query.limit || 20) || 20));
+    let page;
+    let personalized = false;
+    if (q) {
+      page = await takeNews(`news:q:${q.toLowerCase()}`, searchNewsStages(q), offset, limit);
+      page.items = await withNewsDescriptions(page.items);
+    } else if (symbols.length) {
+      personalized = true;
+      page = await takeNews(`news:follow:${symbols.join(",")}`, followNewsStages(symbols), offset, limit);
+    } else {
+      page = await takeNews("news:market", marketNewsStages(), offset, limit);
+    }
     res.json({
-      items: items.slice(offset, offset + limit),
-      hasMore: offset + limit < items.length,
+      items: page.items,
+      hasMore: page.hasMore,
       personalized,
       offset,
       limit,
@@ -581,38 +575,132 @@ function lastAnnual(s) {
   return s.annual[s.annual.length - 1].value;
 }
 
-async function companyNews(symbol) {
-  return cached(`cnews:${symbol}`, TTL.news, async () => {
-    const [searchNews, rss, gnews, earn] = await Promise.all([
-      getNewsForQuery(symbol, 40).catch(() => []),
-      getRssNews(symbol).catch(() => []),
-      getGoogleNews(`${symbol} stock`).catch(() => []),
-      getNewsForQuery(`${symbol} earnings`, 20).catch(() => []),
-    ]);
-    return dedupeNews([...searchNews, ...rss, ...gnews, ...earn]).map(classifyNews);
+async function takeNews(key, stages, offset, limit, pred = () => true) {
+  const state = await cached(key, TTL.news, () => ({ items: [], stage: 0 }));
+  const filtered = () => state.items.filter(pred);
+  while (filtered().length < offset + limit && state.stage < stages.length) {
+    let batch = [];
+    try {
+      batch = (await stages[state.stage]()) || [];
+    } catch {
+      batch = [];
+    }
+    state.stage += 1;
+    const classified = batch.filter(Boolean).map(classifyNews);
+    state.items = dedupeNews([...state.items, ...classified]);
+  }
+  const all = filtered();
+  const items = all.slice(offset, offset + limit);
+  const hasMore = offset + items.length < all.length || state.stage < stages.length;
+  return { items, hasMore };
+}
+
+async function withNewsDescriptions(items) {
+  return mapLimit(items, 3, async (n) => {
+    const raw = n.summaryRaw || n.description || "";
+    const enough = raw.split(/\s+/).filter(Boolean).length >= 150;
+    const description = enough ? clipWords(raw, 200) : await articleDescription(n.link, raw || n.title || "");
+    return { ...n, description, title: n.title };
   });
 }
 
-async function newsForSymbols(symbols) {
-  const lists = await mapLimit(symbols.slice(0, 12), 4, (s) => companyNews(s));
-  return dedupeNews(lists.flat().filter(Boolean));
+function monthWindows(base, months = 18) {
+  const queries = [];
+  const now = new Date();
+  for (let i = 0; i < months; i++) {
+    const before = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    const after = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i - 1, 1));
+    queries.push(`${base} after:${after.toISOString().slice(0, 10)} before:${before.toISOString().slice(0, 10)}`);
+  }
+  return queries;
 }
 
-async function marketNews() {
-  return cached("news:market", TTL.news, async () => {
-    const queries = [
-      "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "JPM",
-      "stock market", "Federal Reserve", "earnings", "S&P 500",
-    ];
-    const lists = await mapLimit(queries, 4, (q) => getNewsForQuery(q, 12));
-    const rss = await Promise.all(
-      ["^GSPC", "AAPL", "MSFT", "NVDA", "AMZN"].map((s) => getRssNews(s).catch(() => []))
-    );
-    const gnews = await Promise.all(
-      ["US stock market", "Wall Street", "S&P 500", "Nasdaq"].map((q) => getGoogleNews(q).catch(() => []))
-    );
-    return dedupeNews([...lists.flat(), ...rss.flat(), ...gnews.flat()]).map(classifyNews);
-  });
+function companyNewsStages(symbol) {
+  return [
+    async () => {
+      const [searchNews, rss, gnews, earn] = await Promise.all([
+        getNewsForQuery(symbol, 40).catch(() => []),
+        getRssNews(symbol).catch(() => []),
+        getGoogleNews(`${symbol} stock`).catch(() => []),
+        getNewsForQuery(`${symbol} earnings`, 20).catch(() => []),
+      ]);
+      return [...searchNews, ...rss, ...gnews, ...earn];
+    },
+    () => getGoogleNews(`${symbol} stock when:1m`).catch(() => []),
+    () => getGoogleNews(`${symbol} earnings when:3m`).catch(() => []),
+    () => getGoogleNews(`${symbol} stock when:1y`).catch(() => []),
+    () => getGoogleNews(`${symbol} when:5y`).catch(() => []),
+    ...monthWindows(`${symbol} stock`, 24).map((q) => () => getGoogleNews(q).catch(() => [])),
+  ];
+}
+
+function followNewsStages(symbols) {
+  const list = symbols.slice(0, 12);
+  return [
+    async () => {
+      const lists = await mapLimit(list, 4, (s) =>
+        Promise.all([
+          getNewsForQuery(s, 20).catch(() => []),
+          getRssNews(s).catch(() => []),
+          getGoogleNews(`${s} stock`).catch(() => []),
+        ]).then((parts) => parts.flat())
+      );
+      return lists.flat();
+    },
+    () => Promise.all(list.slice(0, 8).map((s) => getGoogleNews(`${s} stock when:1m`).catch(() => []))).then((x) => x.flat()),
+    () => Promise.all(list.slice(0, 8).map((s) => getGoogleNews(`${s} when:1y`).catch(() => []))).then((x) => x.flat()),
+    ...monthWindows("stock market", 12).map((q) => () => getGoogleNews(q).catch(() => [])),
+  ];
+}
+
+function marketNewsStages() {
+  return [
+    async () => {
+      const queries = [
+        "NVDA", "AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "JPM",
+        "stock market", "Federal Reserve", "earnings", "S&P 500",
+      ];
+      const lists = await mapLimit(queries, 4, (q) => getNewsForQuery(q, 12));
+      const rss = await Promise.all(
+        ["^GSPC", "AAPL", "MSFT", "NVDA", "AMZN"].map((s) => getRssNews(s).catch(() => []))
+      );
+      const gnews = await Promise.all(
+        ["US stock market", "Wall Street", "S&P 500", "Nasdaq"].map((q) => getGoogleNews(q).catch(() => []))
+      );
+      return [...lists.flat(), ...rss.flat(), ...gnews.flat()];
+    },
+    () => getGoogleNews("US stock market when:1m").catch(() => []),
+    () => getGoogleNews("Wall Street when:3m").catch(() => []),
+    () => getGoogleNews("earnings stock market when:1y").catch(() => []),
+    () => getGoogleNews("S&P 500 when:5y").catch(() => []),
+    ...monthWindows("US stock market", 24).map((q) => () => getGoogleNews(q).catch(() => [])),
+  ];
+}
+
+function searchNewsStages(q) {
+  return [
+    async () => {
+      const data = await searchYahoo(q, { quotes: 8, news: 20 }).catch(() => ({ quotes: [], news: [] }));
+      const top = (data.quotes || [])
+        .filter((x) => (x.quoteType || "EQUITY").toUpperCase() === "EQUITY")
+        .slice(0, 4);
+      const extra = await Promise.all(
+        top.map((x) =>
+          Promise.all([
+            getRssNews(x.symbol).catch(() => []),
+            getGoogleNews(`${x.symbol} ${x.name || ""} stock`).catch(() => []),
+          ]).then((parts) => parts.flat())
+        )
+      );
+      return [...(data.news || []), ...extra.flat()];
+    },
+    () => getGoogleNews(`${q} stock`).catch(() => []),
+    () => getGoogleNews(`${q} earnings`).catch(() => []),
+    () => getGoogleNews(`${q} when:1m`).catch(() => []),
+    () => getGoogleNews(`${q} stock when:1y`).catch(() => []),
+    () => getGoogleNews(`${q} when:5y`).catch(() => []),
+    ...monthWindows(q, 24).map((query) => () => getGoogleNews(query).catch(() => [])),
+  ];
 }
 
 function dedupeNews(items) {

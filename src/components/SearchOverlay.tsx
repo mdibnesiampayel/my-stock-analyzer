@@ -3,10 +3,9 @@ import { Search, X, Clock } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useDebounced } from "../lib/hooks";
 import { api } from "../lib/api";
-import type { NewsItem, SearchHit } from "../types";
+import type { SearchHit } from "../types";
 import { Avatar } from "./ui";
 import { useStore } from "../lib/store";
-import { timeAgo } from "../lib/format";
 
 export function SearchBar({ onOpen }: { onOpen: () => void }) {
   return (
@@ -71,7 +70,6 @@ export function RecentList({
 export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<SearchHit[]>([]);
-  const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const debounced = useDebounced(q, 220);
   const input = useRef<HTMLInputElement>(null);
@@ -84,7 +82,6 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
     } else {
       setQ("");
       setHits([]);
-      setNews([]);
     }
   }, [open]);
 
@@ -100,21 +97,18 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   useEffect(() => {
     if (!debounced.trim()) {
       setHits([]);
-      setNews([]);
       return;
     }
     let live = true;
     setLoading(true);
-    api<{ quotes: SearchHit[]; news: NewsItem[] }>(`/api/search?q=${encodeURIComponent(debounced)}`)
+    api<{ quotes: SearchHit[] }>(`/api/search?q=${encodeURIComponent(debounced)}`)
       .then((d) => {
         if (!live) return;
         setHits(d.quotes || []);
-        setNews(d.news || []);
       })
       .catch(() => {
         if (!live) return;
         setHits([]);
-        setNews([]);
       })
       .finally(() => {
         if (live) setLoading(false);
@@ -140,17 +134,13 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
   const exactHit = hits.find((h) => h.symbol.toUpperCase() === exactSymbol.toUpperCase());
   const related = hits.filter((h) => h.symbol.toUpperCase() !== exactSymbol.toUpperCase());
 
-  const goStock = (symbol: string) => {
-    addRecent(symbol);
+  const goResults = (query?: string) => {
+    const next = (query ?? term).trim();
+    if (!next) return;
+    if (!/\s/.test(next)) addRecent(next.toUpperCase());
+    else if (exactSymbol) addRecent(exactSymbol);
     onClose();
-    nav(`/stock/${encodeURIComponent(symbol)}`);
-  };
-
-  const goResults = () => {
-    if (!term) return;
-    if (exactSymbol) addRecent(exactSymbol);
-    onClose();
-    nav(`/search?q=${encodeURIComponent(term)}`);
+    nav(`/search?q=${encodeURIComponent(next)}`);
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -172,12 +162,19 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
             placeholder="Search anything — company, ticker, or topic"
             className="h-11 min-w-0 flex-1 bg-transparent text-[15px] outline-none"
           />
+          <button
+            type="submit"
+            className="shrink-0 rounded-lg px-3 py-2 text-sm font-semibold"
+            style={{ background: "var(--ink)", color: "var(--bg)" }}
+          >
+            Search
+          </button>
           <button type="button" onClick={onClose} className="rounded-lg p-2" aria-label="Close search">
             <X size={18} />
           </button>
         </form>
         <div className="min-h-0 flex-1 overflow-y-auto p-2">
-          {!term && <RecentList onPick={goStock} />}
+          {!term && <RecentList onPick={(s) => goResults(s)} />}
           {loading && (
             <div className="px-3 py-4 text-sm" style={{ color: "var(--muted)" }}>
               Searching…
@@ -186,20 +183,18 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
           {term && (
             <div className="mb-3">
               <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-                Stocks
+                Related stocks
               </div>
               <button
                 type="button"
-                onClick={goResults}
+                onClick={() => goResults(term)}
                 className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-[var(--bg-2)]"
               >
                 <Avatar symbol={exactSymbol || term} logo={exactHit?.logo} size={36} />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold">{term}</div>
                   <div className="text-[12px]" style={{ color: "var(--muted)" }}>
-                    {exactHit
-                      ? `${exactHit.symbol} · See all results`
-                      : `Search results for ${term}`}
+                    Open search results
                   </div>
                 </div>
               </button>
@@ -207,7 +202,7 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                 <button
                   key={h.symbol}
                   type="button"
-                  onClick={() => goStock(h.symbol)}
+                  onClick={() => goResults(term)}
                   className="flex w-full items-center gap-3 rounded-xl px-2 py-2.5 text-left hover:bg-[var(--bg-2)]"
                 >
                   <Avatar symbol={h.symbol} logo={h.logo} size={36} />
@@ -220,36 +215,6 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
                   </div>
                 </button>
               ))}
-            </div>
-          )}
-          {news.length > 0 && (
-            <div>
-              <div className="px-2 py-1 text-[11px] font-semibold uppercase tracking-wider" style={{ color: "var(--muted)" }}>
-                News
-              </div>
-              <div className="space-y-2 p-1">
-                {news.map((n) => (
-                  <a
-                    key={`${n.id}-${n.link}`}
-                    href={n.link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="card block p-3"
-                  >
-                    <div className="text-[11px]" style={{ color: "var(--muted)" }}>
-                      {n.publisher}
-                      {n.publishedAt ? ` · ${timeAgo(n.publishedAt)}` : ""}
-                      {n.related?.[0] ? ` · ${n.related[0]}` : ""}
-                    </div>
-                    <h3 className="mt-1 text-[14.5px] font-semibold leading-snug">{n.title}</h3>
-                    {n.description && (
-                      <p className="mt-2 text-[13px] leading-relaxed" style={{ color: "var(--muted)" }}>
-                        {n.description}
-                      </p>
-                    )}
-                  </a>
-                ))}
-              </div>
             </div>
           )}
         </div>

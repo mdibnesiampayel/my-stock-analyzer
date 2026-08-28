@@ -406,6 +406,7 @@ export async function getUsListedStocks() {
         quoteType: "EQUITY",
       });
     }
+    quotes.sort((a, b) => (b.marketCap || 0) - (a.marketCap || 0) || String(a.symbol).localeCompare(String(b.symbol)));
     return quotes;
   });
 }
