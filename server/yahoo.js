@@ -365,6 +365,51 @@ function decodeEntities(s) {
     .replace(/&nbsp;/g, " ");
 }
 
+function parseNasdaqNum(v) {
+  if (v == null || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const n = Number(String(v).replace(/[$,%]/g, "").replace(/,/g, "").trim());
+  return Number.isFinite(n) ? n : null;
+}
+
+export async function getUsListedStocks() {
+  return cached("uslisted:v1", TTL.universe, async () => {
+    const data = await yahooJson("https://api.nasdaq.com/api/screener/stocks?download=true", {
+      timeout: 35000,
+      headers: {
+        Accept: "application/json, text/plain, */*",
+        Origin: "https://www.nasdaq.com",
+        Referer: "https://www.nasdaq.com/market-activity/stocks/screener",
+      },
+    });
+    const rows = data?.data?.rows || [];
+    const quotes = [];
+    for (const r of rows) {
+      const symbol = String(r.symbol || "")
+        .trim()
+        .toUpperCase();
+      if (!symbol || symbol.includes("^") || symbol.includes("=") || symbol.includes("/")) continue;
+      quotes.push({
+        symbol,
+        name: r.name || symbol,
+        longName: r.name || symbol,
+        price: parseNasdaqNum(r.lastsale),
+        change: parseNasdaqNum(r.netchange),
+        changePercent: parseNasdaqNum(r.pctchange),
+        volume: parseNasdaqNum(r.volume),
+        marketCap: parseNasdaqNum(r.marketCap),
+        sector: r.sector || null,
+        industry: r.industry || null,
+        country: r.country || null,
+        logo: logoUrl(symbol),
+        currency: "USD",
+        quoteType: "EQUITY",
+      });
+    }
+    return quotes;
+  });
+}
+
 export async function getIpoCalendar() {
   return cached("ipo:recent", TTL.ipo, async () => {
     const now = new Date();

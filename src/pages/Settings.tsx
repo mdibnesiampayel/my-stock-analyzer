@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { useStore } from "../lib/store";
 import { useMoney } from "../lib/money";
 import { CURRENCIES } from "../lib/aiProviders";
@@ -194,10 +195,10 @@ function Row({ label, onClick }: { label: string; onClick: () => void }) {
 function Legal({ title, onBack, children }: { title: string; onBack: () => void; children: ReactNode }) {
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onBack} className="text-sm font-semibold">
-        ← Settings
+      <button type="button" onClick={onBack} className="inline-flex items-center gap-1 text-sm font-semibold">
+        <ArrowLeft size={16} /> Settings
       </button>
-      <h1 className="text-[26px] font-semibold tracking-tight">{title}</h1>
+      <h1 className="mt-2 text-[26px] font-semibold tracking-tight">{title}</h1>
       <div className="card space-y-3 p-4 text-[14px] leading-relaxed">{children}</div>
     </div>
   );

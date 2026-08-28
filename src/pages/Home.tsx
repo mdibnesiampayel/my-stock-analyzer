@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { Flame, Star, Sparkle, TrendingUp, TrendingDown } from "lucide-react";
 import { StockCard, StockCardSkeleton } from "../components/StockCard";
 import { NewsCard } from "../components/NewsCard";
-import { ChangeBadge, EmptyState, ErrorBox, PrimaryButton, SectionLabel } from "../components/ui";
+import { EmptyState, ErrorBox, PrimaryButton, SectionLabel } from "../components/ui";
 import { useApi } from "../lib/hooks";
 import { useStore } from "../lib/store";
-import { formatIndex, marketLabel } from "../lib/format";
+import { marketLabel } from "../lib/format";
 import type { NewsItem, Quote } from "../types";
 
 const TABS = [
@@ -52,22 +52,6 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
           {marketLabel(overview.data?.indices?.[0]?.marketState)}
         </div>
         <h1 className="mt-0.5 text-[26px] font-semibold tracking-tight">Research, simply.</h1>
-      </div>
-
-      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-        {(overview.data?.indices || []).slice(0, 4).map((ix) => (
-          <div key={ix.symbol} className="card px-3 py-2.5">
-            <div className="text-[11px] font-medium" style={{ color: "var(--muted)" }}>
-              {ix.name}
-            </div>
-            <div className="mt-1 flex items-center justify-between gap-2">
-              <div className="price text-sm font-semibold">{formatIndex(ix.price)}</div>
-              <ChangeBadge value={ix.changePercent} />
-            </div>
-          </div>
-        ))}
-        {overview.loading &&
-          Array.from({ length: 4 }).map((_, i) => <div key={i} className="skel h-[62px] rounded-2xl" />)}
       </div>
 
       <div className="md:grid md:grid-cols-[minmax(0,1fr)_280px] md:items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">

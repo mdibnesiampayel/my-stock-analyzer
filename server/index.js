@@ -14,6 +14,7 @@ import {
   getRssNews,
   getGoogleNews,
   getIpoCalendar,
+  getUsListedStocks,
   articleDescription,
   clipWords,
   RANGE_MAP,
@@ -109,6 +110,60 @@ app.get("/api/market/overview", async (req, res) => {
     fail(res, err);
   }
 });
+
+app.get("/api/market/us", async (req, res) => {
+  try {
+    const offset = Math.max(0, Number(req.query.offset || 0) || 0);
+    const limit = Math.min(80, Math.max(1, Number(req.query.limit || 40) || 40));
+    const sortKey = String(req.query.sort || "").toLowerCase();
+    const dir = String(req.query.dir || "").toLowerCase() === "asc" ? "asc" : "desc";
+    const all = await getUsListedStocks();
+    const sorted = sortUsQuotes(all, sortKey, dir);
+    const quotes = sorted.slice(offset, offset + limit);
+    res.json({
+      quotes,
+      total: sorted.length,
+      offset,
+      limit,
+      hasMore: offset + quotes.length < sorted.length,
+    });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+function sortUsQuotes(rows, key, dir) {
+  const mul = dir === "asc" ? 1 : -1;
+  if (key === "name") {
+    return [...rows].sort((a, b) => {
+      const av = String(a.symbol || "").toUpperCase();
+      const bv = String(b.symbol || "").toUpperCase();
+      if (av < bv) return -1 * mul;
+      if (av > bv) return 1 * mul;
+      return 0;
+    });
+  }
+  if (key === "volume" || key === "price" || key === "change") {
+    return [...rows].sort((a, b) => {
+      let av = -Infinity;
+      let bv = -Infinity;
+      if (key === "volume") {
+        av = a.volume ?? -1;
+        bv = b.volume ?? -1;
+      } else if (key === "price") {
+        av = a.price ?? -Infinity;
+        bv = b.price ?? -Infinity;
+      } else {
+        av = a.changePercent ?? -Infinity;
+        bv = b.changePercent ?? -Infinity;
+      }
+      if (av < bv) return -1 * mul;
+      if (av > bv) return 1 * mul;
+      return 0;
+    });
+  }
+  return rows;
+}
 
 app.get("/api/market/lists", async (_req, res) => {
   try {

@@ -1,88 +1,134 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useApi } from "../lib/hooks";
+import { api } from "../lib/api";
 import type { Quote } from "../types";
-import { ChangeBadge, ErrorBox, Skeleton } from "../components/ui";
-import { applySort, cycleSort, MarketHead, MarketRow, type SortKey, type SortState } from "../components/MarketRow";
-import { formatIndex, marketLabel } from "../lib/format";
+import { ErrorBox, Skeleton } from "../components/ui";
+import { cycleSort, MarketHead, MarketRow, type SortKey, type SortState } from "../components/MarketRow";
+import { marketLabel } from "../lib/format";
 
-const TABS = [
-  { id: "hot", label: "Hot" },
-  { id: "gainers", label: "Gainers" },
-  { id: "losers", label: "Losers" },
-  { id: "new", label: "New" },
-] as const;
+const PAGE = 40;
 
 export default function Market() {
   const overview = useApi<{ indices: Quote[] }>("/api/market/overview");
-  const lists = useApi<{ hot: Quote[]; gainers: Quote[]; losers: Quote[]; new: Quote[] }>("/api/market/lists");
-  const [tab, setTab] = useState<(typeof TABS)[number]["id"]>("hot");
   const [sort, setSort] = useState<SortState>({ key: null, dir: "asc" });
+  const [rows, setRows] = useState<Quote[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const offsetRef = useRef(0);
+  const inflightRef = useRef(false);
+  const hasMoreRef = useRef(true);
+  const rowsRef = useRef<Quote[]>([]);
+  const acRef = useRef<AbortController | null>(null);
+  const sentinel = useRef<HTMLDivElement>(null);
+  const sortRef = useRef(sort);
+  sortRef.current = sort;
 
-  const source = useMemo(() => {
-    if (tab === "gainers") return lists.data?.gainers || [];
-    if (tab === "losers") return lists.data?.losers || [];
-    if (tab === "new") return lists.data?.new || [];
-    return lists.data?.hot || [];
-  }, [tab, lists.data]);
+  const load = useCallback(async (reset: boolean) => {
+    if (!reset && inflightRef.current) return;
+    if (!reset && !hasMoreRef.current) return;
+    const off = reset ? 0 : offsetRef.current;
+    const s = sortRef.current;
+    const qs = new URLSearchParams({ offset: String(off), limit: String(PAGE) });
+    if (s.key) {
+      qs.set("sort", s.key);
+      qs.set("dir", s.dir);
+    }
+    acRef.current?.abort();
+    const ac = new AbortController();
+    acRef.current = ac;
+    inflightRef.current = true;
+    setLoading(true);
+    if (reset) setError(null);
+    try {
+      const d = await api<{ quotes: Quote[]; total: number; hasMore: boolean }>(`/api/market/us?${qs}`, {
+        signal: ac.signal,
+      });
+      const incoming = d.quotes || [];
+      const next = reset ? incoming : [...rowsRef.current, ...incoming];
+      rowsRef.current = next;
+      offsetRef.current = off + incoming.length;
+      const more = Boolean(d.hasMore) && incoming.length > 0;
+      hasMoreRef.current = more;
+      setRows(next);
+      setTotal(d.total || next.length);
+      setHasMore(more);
+      setError(null);
+    } catch (err) {
+      if ((err instanceof DOMException || err instanceof Error) && (err as Error).name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Could not load US stocks");
+    } finally {
+      if (acRef.current === ac) {
+        inflightRef.current = false;
+        setLoading(false);
+      }
+    }
+  }, []);
 
-  const rows = useMemo(() => applySort(source, sort), [source, sort]);
+  useEffect(() => {
+    rowsRef.current = [];
+    offsetRef.current = 0;
+    hasMoreRef.current = true;
+    inflightRef.current = false;
+    setRows([]);
+    setHasMore(true);
+    void load(true);
+    return () => acRef.current?.abort();
+  }, [sort.key, sort.dir, load]);
+
+  useEffect(() => {
+    const el = sentinel.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) void load(false);
+      },
+      { rootMargin: "480px" }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, [load, rows.length, hasMore]);
 
   const onSort = (key: SortKey) => setSort((prev) => cycleSort(prev, key));
 
   return (
-    <div className="min-w-0 space-y-5 overflow-x-hidden">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       <div>
         <h1 className="text-[26px] font-semibold tracking-tight">Market</h1>
         <p className="text-sm" style={{ color: "var(--muted)" }}>
-          {marketLabel(overview.data?.indices?.[0]?.marketState)} · US session
+          {marketLabel(overview.data?.indices?.[0]?.marketState)}
+          {total ? ` · ${total.toLocaleString("en-US")} US stocks` : ""}
         </p>
       </div>
 
-      {overview.error && <ErrorBox message={overview.error} onRetry={overview.reload} />}
-
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
-        {(overview.data?.indices || []).map((ix) => (
-          <div key={ix.symbol} className="card min-w-0 px-3 py-2.5 lg:p-4">
-            <div className="truncate text-[11px] font-medium lg:text-[12px]" style={{ color: "var(--muted)" }}>
-              {ix.name}
-            </div>
-            <div className="mt-1 flex min-w-0 items-center justify-between gap-1">
-              <div className="price truncate text-[13px] font-semibold lg:text-xl">{formatIndex(ix.price)}</div>
-              <ChangeBadge value={ix.changePercent} />
-            </div>
-          </div>
-        ))}
-        {overview.loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[62px] lg:h-20" />)}
-      </div>
-
-      <div className="hide-scroll flex gap-1 overflow-x-auto pb-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            onClick={() => {
-              setTab(t.id);
-              setSort({ key: null, dir: "asc" });
-            }}
-            className="shrink-0 rounded-full px-3.5 py-2 text-[13px] font-semibold"
-            style={
-              tab === t.id
-                ? { background: "var(--ink)", color: "var(--bg)" }
-                : { background: "var(--surface)", color: "var(--muted)", border: "1px solid var(--line)" }
-            }
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {lists.error && <ErrorBox message={lists.error} onRetry={lists.reload} />}
+      {error && <ErrorBox message={error} onRetry={() => load(true)} />}
 
       <div className="card overflow-hidden px-2 pt-3">
         <MarketHead sort={sort} onSort={onSort} />
-        {lists.loading && Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="my-2 h-14" />)}
-        {!lists.loading && rows.map((q) => <MarketRow key={q.symbol} quote={q} />)}
+        {loading && rows.length === 0 && Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="my-2 h-14" />)}
+        {rows.map((q) => (
+          <MarketRow key={q.symbol} quote={q} />
+        ))}
+        <div ref={sentinel} className="h-4" />
+        {loading && rows.length > 0 && <Skeleton className="my-2 h-14" />}
+        {!loading && !rows.length && !error && (
+          <div className="px-2 py-6 text-sm" style={{ color: "var(--muted)" }}>
+            No US stocks available right now.
+          </div>
+        )}
       </div>
+
+      {hasMore && !loading && (
+        <button
+          type="button"
+          onClick={() => load(false)}
+          className="w-full rounded-xl py-2.5 text-sm font-semibold"
+          style={{ background: "var(--surface)", border: "1px solid var(--line)" }}
+        >
+          Show more stocks
+        </button>
+      )}
     </div>
   );
 }
