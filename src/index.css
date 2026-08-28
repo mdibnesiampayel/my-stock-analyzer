@@ -1,0 +1,136 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #f3f5f7;
+  --bg-2: #eef1f4;
+  --surface: #ffffff;
+  --text: #102033;
+  --muted: #667085;
+  --line: #e6e9ee;
+  --ink: #102033;
+  --pos: #1f8df9;
+  --neg: #dd7a2b;
+  --gold: #c9a227;
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 8px 24px rgba(16, 32, 51, 0.05);
+}
+
+.dark {
+  --bg: #0b1016;
+  --bg-2: #10161e;
+  --surface: #151c25;
+  --text: #eef2f6;
+  --muted: #93a0b0;
+  --line: #243040;
+  --ink: #e8eef5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 28px rgba(0, 0, 0, 0.28);
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button,
+input,
+a {
+  font-family: inherit;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  box-shadow: var(--shadow);
+}
+
+.hairline {
+  background: var(--line);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 45%, transparent);
+  border-radius: 99px;
+}
+
+.hide-scroll {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.hide-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-row {
+  scrollbar-width: none;
+}
+
+.price {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+.badge-pos {
+  background: #1f8df9;
+  color: #fff;
+}
+.badge-neg {
+  background: #dd7a2b;
+  color: #fff;
+}
+.badge-flat {
+  background: #98a2b3;
+  color: #fff;
+}
+
+.dark .badge-flat {
+  background: #475467;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.rise {
+  animation: rise 0.35s ease both;
+}
+
+@keyframes pulse-bar {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 0.85;
+  }
+}
+.skel {
+  background: linear-gradient(90deg, var(--line), color-mix(in srgb, var(--line) 40%, var(--surface)), var(--line));
+  background-size: 200% 100%;
+  animation: pulse-bar 1.4s ease infinite;
+}
