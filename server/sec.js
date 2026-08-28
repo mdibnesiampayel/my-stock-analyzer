@@ -273,14 +273,14 @@ export async function getWikiAbout(name) {
     try {
       const search = await fetch(
         `https://en.wikipedia.org/w/api.php?action=query&list=search&srsearch=${encodeURIComponent(name)}&utf8=&format=json&srlimit=1`,
-        { headers: { "User-Agent": "StockLens/1.0 (contact@stocklens.app)", Accept: "application/json" } }
+        { headers: { "User-Agent": "MyStockAnalyzer/1.0 (github.com/mdibnesiampayel/my-stock-analyzer)", Accept: "application/json" } }
       );
       if (!search.ok) return null;
       const sj = await search.json();
       const title = sj?.query?.search?.[0]?.title;
       if (!title) return null;
       const sumRes = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`, {
-        headers: { "User-Agent": "StockLens/1.0 (contact@stocklens.app)", Accept: "application/json" },
+        headers: { "User-Agent": "MyStockAnalyzer/1.0 (github.com/mdibnesiampayel/my-stock-analyzer)", Accept: "application/json" },
       });
       if (!sumRes.ok) return null;
       const sum = await sumRes.json();

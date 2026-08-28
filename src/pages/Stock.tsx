@@ -6,7 +6,8 @@ import { api } from "../lib/api";
 import { useStore } from "../lib/store";
 import { usePagedNews } from "../lib/usePagedNews";
 import type { Analysis, Candle, Fundamentals, Metrics, Quote } from "../types";
-import { formatCompact, formatPct, formatPrice, formatRatio, formatVolume, marketLabel } from "../lib/format";
+import { formatPct, formatRatio, formatVolume, marketLabel } from "../lib/format";
+import { useMoney } from "../lib/money";
 import { Avatar, ChangeBadge, ErrorBox, RatingDot, ScoreRing, Skeleton, YearBars } from "../components/ui";
 import { StarButton } from "../components/StarButton";
 import { FollowButton } from "../components/FollowButton";
@@ -56,7 +57,8 @@ interface StockPayload {
 export default function Stock() {
   const { symbol = "" } = useParams();
   const sym = symbol.toUpperCase();
-  const { addRecent } = useStore();
+  const { addRecent, activeAiKey } = useStore();
+  const money = useMoney();
   const [tab, setTab] = useState<Tab>("Overview");
   const [range, setRange] = useState("1M");
   const [aboutOpen, setAboutOpen] = useState(false);
@@ -90,7 +92,18 @@ export default function Stock() {
     setAnalysisLoading(true);
     setAnalysisError(null);
     try {
-      const d = await api<{ analysis: Analysis }>(`/api/stock/${encodeURIComponent(sym)}/analysis`);
+      const body: Record<string, string> = {};
+      if (activeAiKey?.key) {
+        body.provider = activeAiKey.provider;
+        body.apiKey = activeAiKey.key;
+        if (activeAiKey.model) body.model = activeAiKey.model;
+        if (activeAiKey.baseUrl) body.baseUrl = activeAiKey.baseUrl;
+      }
+      const d = await api<{ analysis: Analysis }>(`/api/stock/${encodeURIComponent(sym)}/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
       setAnalysis(d.analysis);
     } catch {
       setAnalysisError("Unable to complete the analysis right now.");
@@ -144,11 +157,12 @@ export default function Stock() {
                 <div className="hidden text-sm lg:block" style={{ color: "var(--muted)" }}>
                   {sym} · {p?.exchange || "US"}
                 </div>
-                <div className="price text-[34px] font-semibold leading-none tracking-tight lg:mt-2">{formatPrice(q.price)}</div>
+                <div className="price text-[34px] font-semibold leading-none tracking-tight lg:mt-2">{money.price(q.price)}</div>
                 <div className="mt-2 flex flex-wrap items-center gap-2">
                   <ChangeBadge value={q.changePercent} />
                   <span className="text-[12px]" style={{ color: "var(--muted)" }}>
-                    {formatPrice(q.change)} today · {marketLabel(q.marketState)}
+                    {money.price(q.change)} today · {marketLabel(q.marketState)}
+                    {money.converted ? ` · ${money.code}` : ""}
                   </span>
                 </div>
               </div>
@@ -244,6 +258,7 @@ function Overview({
   setAboutOpen: (v: boolean) => void;
   onAnalyze: () => void;
 }) {
+  const money = useMoney();
   const about = p.about || "No company description is available yet.";
   const shown = aboutOpen ? about : about.length > 220 ? about.slice(0, 220).replace(/\s+\S*$/, "") + "…" : about;
   return (
@@ -270,16 +285,16 @@ function Overview({
           Key figures
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-5">
-          <Metric label="Market cap" value={formatCompact(m.marketCap)} />
+          <Metric label="Market cap" value={money.compact(m.marketCap)} />
           <Metric label="P/E" value={formatRatio(m.pe)} />
-          <Metric label="EPS" value={m.eps != null ? m.eps.toFixed(2) : "—"} />
-          <Metric label="Revenue" value={formatCompact(m.revenue)} />
-          <Metric label="Net income" value={formatCompact(m.netIncome)} />
-          <Metric label="Free cash flow" value={formatCompact(m.fcf)} />
-          <Metric label="Cash" value={formatCompact(m.cash)} />
-          <Metric label="Debt" value={formatCompact(m.debt)} />
+          <Metric label="EPS" value={money.price(m.eps)} />
+          <Metric label="Revenue" value={money.compact(m.revenue)} />
+          <Metric label="Net income" value={money.compact(m.netIncome)} />
+          <Metric label="Free cash flow" value={money.compact(m.fcf)} />
+          <Metric label="Cash" value={money.compact(m.cash)} />
+          <Metric label="Debt" value={money.compact(m.debt)} />
           <Metric label="Volume" value={formatVolume(q.volume)} />
-          <Metric label="52-week" value={`${formatPrice(q.fiftyTwoWeekLow)} – ${formatPrice(q.fiftyTwoWeekHigh)}`} />
+          <Metric label="52-week" value={`${money.price(q.fiftyTwoWeekLow)} – ${money.price(q.fiftyTwoWeekHigh)}`} />
         </div>
       </section>
 
@@ -294,7 +309,7 @@ function Overview({
             <Metric label="Price / sales" value={formatRatio(m.ps)} />
             <Metric label="Price / book" value={formatRatio(m.pb)} />
             <Metric label="Analyst rating" value={m.recommendation || "—"} />
-            <Metric label="Target" value={formatPrice(m.targetPrice)} />
+            <Metric label="Target" value={money.price(m.targetPrice)} />
           </div>
           {insights?.recommendation?.provider && (
             <p className="mt-2 text-[11px]" style={{ color: "var(--muted)" }}>
@@ -308,9 +323,9 @@ function Overview({
             Earnings & dividends
           </div>
           <div className="mt-3 grid grid-cols-2 gap-3">
-            <Metric label="Latest EPS" value={m.eps != null ? m.eps.toFixed(2) : "—"} />
+            <Metric label="Latest EPS" value={money.price(m.eps)} />
             <Metric label="EPS growth" value={formatPct((m.epsGrowth || 0) * 100, true)} />
-            <Metric label="Dividend / share" value={m.dividendPerShare != null ? `$${m.dividendPerShare.toFixed(2)}` : "—"} />
+            <Metric label="Dividend / share" value={money.price(m.dividendPerShare)} />
             <Metric label="Dividend yield" value={formatPct((m.dividendYield || 0) * 100, false)} />
           </div>
         </section>
@@ -353,6 +368,7 @@ function FundamentalsTab({
   openItem: string | null;
   setOpenItem: (id: string | null) => void;
 }) {
+  const money = useMoney();
   return (
     <div className="space-y-3">
       <section className="card p-4">
@@ -360,12 +376,12 @@ function FundamentalsTab({
           Current fundamentals
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <Metric label="Revenue" value={formatCompact(m?.revenue)} />
-          <Metric label="Net income" value={formatCompact(m?.netIncome)} />
-          <Metric label="EPS" value={m?.eps != null ? m.eps.toFixed(2) : "—"} />
-          <Metric label="Free cash flow" value={formatCompact(m?.fcf)} />
-          <Metric label="Cash" value={formatCompact(m?.cash)} />
-          <Metric label="Debt" value={formatCompact(m?.debt)} />
+          <Metric label="Revenue" value={money.compact(m?.revenue)} />
+          <Metric label="Net income" value={money.compact(m?.netIncome)} />
+          <Metric label="EPS" value={money.price(m?.eps)} />
+          <Metric label="Free cash flow" value={money.compact(m?.fcf)} />
+          <Metric label="Cash" value={money.compact(m?.cash)} />
+          <Metric label="Debt" value={money.compact(m?.debt)} />
           <Metric label="Profit margin" value={formatPct((m?.profitMargin || 0) * 100, false)} />
           <Metric label="Revenue growth" value={formatPct((m?.revenueGrowth || 0) * 100, true)} />
         </div>
@@ -621,6 +637,7 @@ function AnalysisTab({
 }
 
 function PeersTab({ peers, loading }: { peers: (Quote & { metrics?: Metrics })[]; loading: boolean }) {
+  const money = useMoney();
   if (loading) return <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>;
   if (!peers.length) return <div className="card p-4 text-sm">No close competitors were found in the current universe.</div>;
   return (
@@ -646,7 +663,7 @@ function PeersTab({ peers, loading }: { peers: (Quote & { metrics?: Metrics })[]
             {peers.map((p) => (
               <tr key={p.symbol} className="border-t" style={{ borderColor: "var(--line)" }}>
                 <td className="px-3 py-2 font-semibold">{p.symbol}</td>
-                <td className="price px-3 py-2">{formatPrice(p.price)}</td>
+                <td className="price px-3 py-2">{money.price(p.price)}</td>
                 <td className="px-3 py-2">
                   <ChangeBadge value={p.changePercent} />
                 </td>

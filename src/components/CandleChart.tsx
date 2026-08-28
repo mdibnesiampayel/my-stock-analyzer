@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { ColorType, createChart, type IChartApi, type ISeriesApi, type UTCTimestamp } from "lightweight-charts";
 import type { Candle } from "../types";
+import { useMoney } from "../lib/money";
 
 const RANGES = ["1D", "1W", "1M", "3M", "1Y", "5Y"] as const;
 
@@ -13,6 +14,7 @@ export function CandleChart({
   range: string;
   onRange: (r: string) => void;
 }) {
+  const money = useMoney();
   const wrap = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -68,14 +70,14 @@ export function CandleChart({
     if (!seriesRef.current || !chartRef.current) return;
     const data = candles.map((c) => ({
       time: c.time as UTCTimestamp,
-      open: c.open,
-      high: c.high,
-      low: c.low,
-      close: c.close,
+      open: c.open * money.rate,
+      high: c.high * money.rate,
+      low: c.low * money.rate,
+      close: c.close * money.rate,
     }));
     seriesRef.current.setData(data);
     chartRef.current.timeScale().fitContent();
-  }, [candles]);
+  }, [candles, money.rate]);
 
   return (
     <div>

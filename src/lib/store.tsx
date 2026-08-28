@@ -1,11 +1,12 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { DEFAULT_SETTINGS, type Settings } from "../types";
+import { DEFAULT_SETTINGS, type AiKey, type AiVault, type Settings } from "../types";
 
 const FAV_KEY = "stocklens.favourites";
 const FOL_KEY = "stocklens.follows";
 const SET_KEY = "stocklens.settings";
 const REC_KEY = "stocklens.recent";
 const SEEN_KEY = "stocklens.seenNews";
+const AI_KEY = "stocklens.aikeys";
 
 function readJson<T>(key: string, fallback: T): T {
   try {
@@ -16,6 +17,8 @@ function readJson<T>(key: string, fallback: T): T {
     return fallback;
   }
 }
+
+const EMPTY_VAULT: AiVault = { activeId: null, keys: [] };
 
 interface Store {
   favourites: string[];
@@ -30,6 +33,11 @@ interface Store {
   updateSettings: (patch: Partial<Settings>) => void;
   seenNews: string[];
   markNewsSeen: (ids: string[]) => void;
+  aiVault: AiVault;
+  activeAiKey: AiKey | null;
+  upsertAiKey: (entry: AiKey) => void;
+  removeAiKey: (id: string) => void;
+  setActiveAiKey: (id: string | null) => void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -43,12 +51,20 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     ...readJson(SET_KEY, {}),
   }));
   const [seenNews, setSeenNews] = useState<string[]>(() => readJson(SEEN_KEY, []));
+  const [aiVault, setAiVault] = useState<AiVault>(() => {
+    const raw = readJson<Partial<AiVault>>(AI_KEY, EMPTY_VAULT);
+    return {
+      activeId: typeof raw.activeId === "string" ? raw.activeId : null,
+      keys: Array.isArray(raw.keys) ? raw.keys.filter((k) => k && typeof k.id === "string" && typeof k.key === "string") : [],
+    };
+  });
 
   useEffect(() => localStorage.setItem(FAV_KEY, JSON.stringify(favourites)), [favourites]);
   useEffect(() => localStorage.setItem(FOL_KEY, JSON.stringify(follows)), [follows]);
   useEffect(() => localStorage.setItem(REC_KEY, JSON.stringify(recent)), [recent]);
   useEffect(() => localStorage.setItem(SET_KEY, JSON.stringify(settings)), [settings]);
   useEffect(() => localStorage.setItem(SEEN_KEY, JSON.stringify(seenNews.slice(-400))), [seenNews]);
+  useEffect(() => localStorage.setItem(AI_KEY, JSON.stringify(aiVault)), [aiVault]);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", settings.darkMode);
@@ -92,8 +108,33 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const upsertAiKey = useCallback((entry: AiKey) => {
+    setAiVault((prev) => {
+      const keys = prev.keys.some((k) => k.id === entry.id)
+        ? prev.keys.map((k) => (k.id === entry.id ? entry : k))
+        : [...prev.keys, entry];
+      return { keys, activeId: prev.activeId || entry.id };
+    });
+  }, []);
+
+  const removeAiKey = useCallback((id: string) => {
+    setAiVault((prev) => {
+      const keys = prev.keys.filter((k) => k.id !== id);
+      const activeId = prev.activeId === id ? keys[0]?.id || null : prev.activeId;
+      return { keys, activeId };
+    });
+  }, []);
+
+  const setActiveAiKey = useCallback((id: string | null) => {
+    setAiVault((prev) => ({ ...prev, activeId: id }));
+  }, []);
+
   const isFavourite = useCallback((symbol: string) => favourites.includes(symbol.toUpperCase()), [favourites]);
   const isFollowed = useCallback((symbol: string) => follows.includes(symbol.toUpperCase()), [follows]);
+  const activeAiKey = useMemo(
+    () => aiVault.keys.find((k) => k.id === aiVault.activeId) || null,
+    [aiVault]
+  );
 
   const value = useMemo<Store>(
     () => ({
@@ -109,6 +150,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addRecent,
       updateSettings,
       markNewsSeen,
+      aiVault,
+      activeAiKey,
+      upsertAiKey,
+      removeAiKey,
+      setActiveAiKey,
     }),
     [
       favourites,
@@ -123,6 +169,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       addRecent,
       updateSettings,
       markNewsSeen,
+      aiVault,
+      activeAiKey,
+      upsertAiKey,
+      removeAiKey,
+      setActiveAiKey,
     ]
   );
 

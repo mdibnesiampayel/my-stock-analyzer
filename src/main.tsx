@@ -9,13 +9,16 @@ import "@fontsource/inter/800.css";
 import "./index.css";
 import App from "./App";
 import { StoreProvider } from "./lib/store";
+import { MoneyProvider } from "./lib/money";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <StoreProvider>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <MoneyProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </MoneyProvider>
     </StoreProvider>
   </React.StrictMode>
 );

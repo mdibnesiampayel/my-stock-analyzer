@@ -7,7 +7,7 @@ import { NewsCard } from "../components/NewsCard";
 import { ChangeBadge, EmptyState, ErrorBox, PrimaryButton, SectionLabel } from "../components/ui";
 import { useApi } from "../lib/hooks";
 import { useStore } from "../lib/store";
-import { formatPrice, marketLabel } from "../lib/format";
+import { formatIndex, marketLabel } from "../lib/format";
 import type { NewsItem, Quote } from "../types";
 
 const TABS = [
@@ -29,7 +29,7 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
   const lists = useApi<{ hot: Quote[]; gainers: Quote[]; losers: Quote[]; new: Quote[] }>("/api/market/lists");
   const favQuery = favourites.length ? `/api/quotes?symbols=${favourites.join(",")}` : null;
   const favs = useApi<{ quotes: Quote[] }>(favQuery);
-  const newsPath = follows.length ? `/api/news?symbols=${follows.join(",")}&limit=6` : "/api/news?limit=6";
+  const newsPath = follows.length ? `/api/news?symbols=${follows.join(",")}&limit=10` : "/api/news?limit=10";
   const news = useApi<{ items: NewsItem[]; personalized: boolean }>(newsPath);
 
   const showMore = expanded[tab] === true;
@@ -66,7 +66,7 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
               {ix.name}
             </div>
             <div className="mt-1 flex items-center justify-between gap-2">
-              <div className="price text-sm font-semibold">{formatPrice(ix.price)}</div>
+              <div className="price text-sm font-semibold">{formatIndex(ix.price)}</div>
               <ChangeBadge value={ix.changePercent} />
             </div>
           </div>
@@ -155,7 +155,7 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
           </div>
           <div className="space-y-2">
             {news.loading && Array.from({ length: 3 }).map((_, i) => <div key={i} className="skel h-28 rounded-2xl" />)}
-            {(news.data?.items || []).slice(0, 5).map((n) => (
+            {(news.data?.items || []).slice(0, 10).map((n) => (
               <NewsCard key={n.id} item={n} />
             ))}
           </div>

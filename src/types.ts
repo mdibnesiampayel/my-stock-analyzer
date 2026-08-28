@@ -151,6 +151,20 @@ export interface NewsItem {
   };
 }
 
+export interface AiKey {
+  id: string;
+  provider: string;
+  label: string;
+  key: string;
+  model?: string;
+  baseUrl?: string;
+}
+
+export interface AiVault {
+  activeId: string | null;
+  keys: AiKey[];
+}
+
 export interface Settings {
   darkMode: boolean;
   notifications: boolean;

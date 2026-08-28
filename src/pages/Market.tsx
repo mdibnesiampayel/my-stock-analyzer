@@ -3,7 +3,7 @@ import { useApi } from "../lib/hooks";
 import type { Quote } from "../types";
 import { ChangeBadge, ErrorBox, Skeleton } from "../components/ui";
 import { StockCard, StockCardSkeleton } from "../components/StockCard";
-import { formatPrice, marketLabel } from "../lib/format";
+import { formatIndex, marketLabel } from "../lib/format";
 
 export default function Market() {
   const overview = useApi<{ indices: Quote[] }>("/api/market/overview");
@@ -27,7 +27,7 @@ export default function Market() {
               {ix.name}
             </div>
             <div className="mt-1 flex items-end justify-between">
-              <div className="price text-xl font-semibold">{formatPrice(ix.price)}</div>
+              <div className="price text-xl font-semibold">{formatIndex(ix.price)}</div>
               <ChangeBadge value={ix.changePercent} />
             </div>
           </div>

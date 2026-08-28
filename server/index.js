@@ -166,9 +166,16 @@ app.get("/api/stock/:symbol", async (req, res) => {
   }
 });
 
-app.get("/api/stock/:symbol/analysis", async (req, res) => {
+async function analysisHandler(req, res) {
   try {
     const symbol = req.params.symbol.toUpperCase();
+    const b = req.body && typeof req.body === "object" ? req.body : {};
+    const creds = {
+      provider: typeof b.provider === "string" ? b.provider : undefined,
+      apiKey: typeof b.apiKey === "string" ? b.apiKey : undefined,
+      model: typeof b.model === "string" ? b.model : undefined,
+      baseUrl: typeof b.baseUrl === "string" ? b.baseUrl : undefined,
+    };
     const [chart, insights, searchHit, submissions, fundamentals] = await Promise.all([
       getChart(symbol, "1mo", "1d"),
       getInsights(symbol),
@@ -193,7 +200,7 @@ app.get("/api/stock/:symbol/analysis", async (req, res) => {
       insights,
       peers: [],
     });
-    const llm = await enhanceReport(analysis, { quote: chart.quote, profile, metrics });
+    const llm = await enhanceReport(analysis, { quote: chart.quote, profile, metrics }, creds);
     if (llm) {
       analysis.report = {
         business: llm.business || analysis.report.business,
@@ -212,7 +219,10 @@ app.get("/api/stock/:symbol/analysis", async (req, res) => {
   } catch (err) {
     fail(res, err);
   }
-});
+}
+
+app.get("/api/stock/:symbol/analysis", analysisHandler);
+app.post("/api/stock/:symbol/analysis", analysisHandler);
 
 app.get("/api/stock/:symbol/peers", async (req, res) => {
   try {
@@ -290,9 +300,16 @@ app.get("/api/news", async (req, res) => {
 
 app.get("/api/fx", async (req, res) => {
   try {
-    const pair = String(req.query.pair || "USDBDT=X");
-    const data = await cached(`fx:${pair}`, TTL.fx, () => getChart(pair, "1d", "5m"));
-    res.json({ pair, rate: data.quote.price, currency: pair.replace("USD", "").replace("=X", "") });
+    const to = String(req.query.to || "")
+      .toUpperCase()
+      .replace(/[^A-Z]/g, "")
+      .slice(0, 6);
+    if (!to || to === "USD") return res.json({ to: "USD", rate: 1, pair: "USD" });
+    const pair = String(req.query.pair || `USD${to}=X`);
+    const data = await cached(`fx:${pair}`, TTL.fx, () => getChart(pair, "5d", "1d"));
+    const rate = data?.quote?.price;
+    if (!rate || !Number.isFinite(rate) || rate <= 0) throw new Error("FX rate unavailable");
+    res.json({ to, rate, pair });
   } catch (err) {
     fail(res, err);
   }

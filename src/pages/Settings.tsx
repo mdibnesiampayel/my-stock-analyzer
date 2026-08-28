@@ -1,9 +1,13 @@
 import { useState, type ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { useStore } from "../lib/store";
+import { useMoney } from "../lib/money";
+import { CURRENCIES } from "../lib/aiProviders";
 import { Wordmark } from "../components/Logo";
 
 export default function Settings() {
-  const { settings, updateSettings } = useStore();
+  const { settings, updateSettings, aiVault } = useStore();
+  const money = useMoney();
   const [page, setPage] = useState<"main" | "about" | "privacy" | "terms">("main");
 
   if (page === "about") return <Legal title="About" onBack={() => setPage("main")}><About /></Legal>;
@@ -105,7 +109,7 @@ export default function Settings() {
         <div>
           <div className="text-sm font-semibold">Display currency</div>
           <div className="text-[12px]" style={{ color: "var(--muted)" }}>
-            Quotes are sourced in USD. Conversion can be added later.
+            Quotes are sourced in USD and converted across the app using live FX rates.
           </div>
           <select
             className="mt-2 w-full rounded-xl border px-3 py-2 text-sm"
@@ -113,12 +117,32 @@ export default function Settings() {
             value={settings.currency}
             onChange={(e) => updateSettings({ currency: e.target.value })}
           >
-            <option value="USD">USD</option>
-            <option value="BDT">BDT</option>
-            <option value="EUR">EUR</option>
-            <option value="GBP">GBP</option>
+            {CURRENCIES.map((c) => (
+              <option key={c.code} value={c.code}>
+                {c.code} · {c.label}
+              </option>
+            ))}
           </select>
+          {money.converted && (
+            <div className="mt-2 text-[12px]" style={{ color: "var(--muted)" }}>
+              1 USD ≈ {money.rate.toLocaleString("en-US", { maximumFractionDigits: 4 })} {money.code}
+            </div>
+          )}
         </div>
+      </section>
+
+      <section className="card overflow-hidden text-sm">
+        <Link to="/settings/api-keys" className="flex w-full items-center justify-between px-4 py-3 text-left font-medium">
+          <div>
+            <div>API keys</div>
+            <div className="text-[12px] font-normal" style={{ color: "var(--muted)" }}>
+              {aiVault.keys.length
+                ? `${aiVault.keys.length} saved on this device`
+                : "Add keys for OpenAI, Claude, Gemini and more"}
+            </div>
+          </div>
+          <span style={{ color: "var(--muted)" }}>›</span>
+        </Link>
       </section>
 
       <section className="card divide-y overflow-hidden text-sm">
@@ -198,8 +222,9 @@ function Privacy() {
   return (
     <>
       <p>
-        Version 1 does not create accounts. Favourite lists, Follow lists, recent searches and settings are stored in
-        this browser’s local storage.
+        Version 1 does not create accounts. Favourite lists, Follow lists, recent searches, settings and optional AI API
+        keys are stored in this browser’s local storage. Keys are sent to the analysis server only when you run Analyze
+        This Stock, and they are not written to logs.
       </p>
       <p>
         If you enable notifications, the browser permission is requested on this device only. Uninstalling, clearing

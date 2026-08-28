@@ -13,6 +13,7 @@ import News from "./pages/News";
 import Market from "./pages/Market";
 import Watchlist from "./pages/Watchlist";
 import SettingsPage from "./pages/Settings";
+import ApiKeys from "./pages/ApiKeys";
 
 export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
@@ -97,6 +98,7 @@ export default function App() {
               <Route path="/news" element={<News />} />
               <Route path="/watchlist" element={<Watchlist />} />
               <Route path="/settings" element={<SettingsPage />} />
+              <Route path="/settings/api-keys" element={<ApiKeys />} />
               <Route path="/stock/:symbol" element={<Stock />} />
             </Routes>
           </main>

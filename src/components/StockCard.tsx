@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Quote } from "../types";
-import { formatPrice } from "../lib/format";
+import { useMoney } from "../lib/money";
 import { Avatar, ChangeBadge, Sparkline } from "./ui";
 import { StarButton } from "./StarButton";
 
@@ -14,6 +14,7 @@ export function StockCard({
   extra?: string;
 }) {
   const pos = (quote.changePercent || 0) >= 0;
+  const money = useMoney();
   return (
     <Link
       to={`/stock/${encodeURIComponent(quote.symbol)}`}
@@ -38,7 +39,7 @@ export function StockCard({
         <Sparkline data={quote.spark} positive={pos} />
       </div>
       <div className="text-right">
-        <div className="price text-[14px] font-semibold">{formatPrice(quote.price)}</div>
+        <div className="price text-[14px] font-semibold">{money.price(quote.price)}</div>
         <div className="mt-1 flex justify-end">
           <ChangeBadge value={quote.changePercent} />
         </div>
