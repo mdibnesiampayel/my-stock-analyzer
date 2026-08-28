@@ -14,6 +14,8 @@ import {
   getRssNews,
   getGoogleNews,
   getIpoCalendar,
+  articleDescription,
+  clipWords,
   RANGE_MAP,
   logoUrl,
 } from "./yahoo.js";
@@ -47,8 +49,25 @@ app.get("/api/search", async (req, res) => {
   try {
     const q = String(req.query.q || "").trim();
     if (q.length < 1) return res.json({ quotes: [], news: [] });
-    const data = await searchYahoo(q, { quotes: 12, news: 0 });
-    res.json(data);
+    const data = await searchYahoo(q, { quotes: 16, news: 10 });
+    const quotes = (data.quotes || []).slice(0, 12);
+    const top = quotes.filter((x) => (x.quoteType || "EQUITY").toUpperCase() === "EQUITY").slice(0, 2);
+    const extra = await Promise.all(
+      top.map((x) =>
+        Promise.all([
+          getRssNews(x.symbol).catch(() => []),
+          getGoogleNews(`${x.symbol} ${x.name || ""} stock`).catch(() => []),
+        ]).then((parts) => parts.flat())
+      )
+    );
+    const merged = dedupeNews([...(data.news || []), ...extra.flat()]).slice(0, 6);
+    const news = await mapLimit(merged, 3, async (n) => {
+      const raw = n.summaryRaw || "";
+      const enough = raw.split(/\s+/).filter(Boolean).length >= 150;
+      const description = enough ? clipWords(raw, 200) : await articleDescription(n.link, raw || n.title || "");
+      return { ...n, description, title: n.title };
+    });
+    res.json({ quotes, news: (news || []).filter(Boolean) });
   } catch (err) {
     fail(res, err);
   }

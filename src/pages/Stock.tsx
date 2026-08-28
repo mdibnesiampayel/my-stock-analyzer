@@ -57,7 +57,7 @@ interface StockPayload {
 export default function Stock() {
   const { symbol = "" } = useParams();
   const sym = symbol.toUpperCase();
-  const { addRecent, activeAiKey } = useStore();
+  const { activeAiKey } = useStore();
   const money = useMoney();
   const [tab, setTab] = useState<Tab>("Overview");
   const [range, setRange] = useState("1M");
@@ -69,7 +69,6 @@ export default function Stock() {
   const [analysisError, setAnalysisError] = useState<string | null>(null);
 
   useEffect(() => {
-    addRecent(sym);
     setTab("Overview");
     setNewsCat("all");
     setAboutOpen(false);

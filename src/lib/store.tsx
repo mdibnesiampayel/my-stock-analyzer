@@ -30,6 +30,8 @@ interface Store {
   isFavourite: (symbol: string) => boolean;
   isFollowed: (symbol: string) => boolean;
   addRecent: (symbol: string) => void;
+  removeRecent: (symbol: string) => void;
+  clearRecent: () => void;
   updateSettings: (patch: Partial<Settings>) => void;
   seenNews: string[];
   markNewsSeen: (ids: string[]) => void;
@@ -90,6 +92,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const removeRecent = useCallback((symbol: string) => {
+    const s = symbol.toUpperCase();
+    setRecent((prev) => prev.filter((x) => x !== s));
+  }, []);
+
+  const clearRecent = useCallback(() => setRecent([]), []);
+
   const updateSettings = useCallback((patch: Partial<Settings>) => {
     setSettings((prev) => ({ ...prev, ...patch }));
   }, []);
@@ -148,6 +157,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isFavourite,
       isFollowed,
       addRecent,
+      removeRecent,
+      clearRecent,
       updateSettings,
       markNewsSeen,
       aiVault,
@@ -167,6 +178,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
       isFavourite,
       isFollowed,
       addRecent,
+      removeRecent,
+      clearRecent,
       updateSettings,
       markNewsSeen,
       aiVault,

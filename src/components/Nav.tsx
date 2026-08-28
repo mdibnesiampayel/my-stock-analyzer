@@ -47,7 +47,7 @@ export function BottomNav() {
 export function SideNav() {
   return (
     <aside
-      className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r px-4 py-5 lg:flex"
+      className="sticky top-0 hidden h-screen w-[232px] shrink-0 flex-col border-r px-4 py-5 md:flex"
       style={{ borderColor: "var(--line)", background: "var(--surface)" }}
     >
       <NavList />

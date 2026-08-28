@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, Route, Routes, useLocation } from "react-router-dom";
+import { Link, Route, Routes } from "react-router-dom";
 import { Search, Settings } from "lucide-react";
 import { Wordmark } from "./components/Logo";
 import { BottomNav, NavList } from "./components/Nav";
@@ -17,8 +17,6 @@ import ApiKeys from "./pages/ApiKeys";
 
 export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
-  const loc = useLocation();
-  const hideTop = loc.pathname.startsWith("/stock/");
   const { follows, settings, seenNews, markNewsSeen } = useStore();
 
   useEffect(() => {
@@ -57,45 +55,43 @@ export default function App() {
   }, [follows, settings.notifications, seenNews, markNewsSeen]);
 
   return (
-    <div className="min-h-screen" style={{ background: "var(--bg)" }}>
-      <div className="mx-auto flex min-h-screen max-w-[1440px]">
-        <SideNavBrand onSearch={() => setSearchOpen(true)} />
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header
-            className={`sticky top-0 z-20 items-center gap-3 border-b px-4 py-3 lg:flex lg:px-8 ${hideTop ? "hidden" : "flex"}`}
-            style={{
-              background: "color-mix(in srgb, var(--surface) 92%, transparent)",
-              borderColor: "var(--line)",
-              backdropFilter: "blur(16px)",
-            }}
-          >
-            {!hideTop && (
-              <div className="lg:hidden">
-                <Wordmark compact />
-              </div>
-            )}
-            <div className="hidden min-w-0 flex-1 lg:block">
-              <button
-                type="button"
-                onClick={() => setSearchOpen(true)}
-                className="card flex w-full max-w-xl items-center gap-3 px-3.5 py-2.5 text-left"
-              >
-                <Search size={16} style={{ color: "var(--muted)" }} />
-                <span className="text-sm" style={{ color: "var(--muted)" }}>
-                  Search stock or company
-                </span>
-              </button>
-            </div>
-            <Link
-              to="/settings"
-              className="ml-auto hidden rounded-xl p-2 lg:inline-flex"
-              style={{ color: "var(--muted)" }}
-              aria-label="Settings"
+    <div className="flex h-[100dvh] overflow-hidden" style={{ background: "var(--bg)" }}>
+      <SideNavBrand onSearch={() => setSearchOpen(true)} />
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header
+          className="flex shrink-0 items-center gap-3 border-b px-4 py-3 md:px-8"
+          style={{
+            background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+            borderColor: "var(--line)",
+            backdropFilter: "blur(16px)",
+          }}
+        >
+          <div className="md:hidden">
+            <Wordmark compact />
+          </div>
+          <div className="hidden min-w-0 flex-1 md:block">
+            <button
+              type="button"
+              onClick={() => setSearchOpen(true)}
+              className="card flex w-full max-w-xl items-center gap-3 px-3.5 py-2.5 text-left"
             >
-              <Settings size={18} />
-            </Link>
-          </header>
-          <main className="mx-auto w-full max-w-[1120px] flex-1 px-4 pb-24 pt-1 lg:px-8 lg:pb-10">
+              <Search size={16} style={{ color: "var(--muted)" }} />
+              <span className="text-sm" style={{ color: "var(--muted)" }}>
+                Search stock or company
+              </span>
+            </button>
+          </div>
+          <Link
+            to="/settings"
+            className="ml-auto hidden rounded-xl p-2 md:inline-flex"
+            style={{ color: "var(--muted)" }}
+            aria-label="Settings"
+          >
+            <Settings size={18} />
+          </Link>
+        </header>
+        <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
+          <div className="mx-auto w-full max-w-[1120px] px-4 py-3 md:px-8 md:pb-10">
             <Routes>
               <Route path="/" element={<Home onSearch={() => setSearchOpen(true)} />} />
               <Route path="/market" element={<Market />} />
@@ -105,8 +101,13 @@ export default function App() {
               <Route path="/settings/api-keys" element={<ApiKeys />} />
               <Route path="/stock/:symbol" element={<Stock />} />
             </Routes>
-          </main>
-        </div>
+          </div>
+        </main>
+        <div
+          className="shrink-0 md:hidden"
+          style={{ height: "calc(3.55rem + env(safe-area-inset-bottom))" }}
+          aria-hidden
+        />
       </div>
       <BottomNav />
       <SearchOverlay open={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -117,7 +118,7 @@ export default function App() {
 function SideNavBrand({ onSearch }: { onSearch: () => void }) {
   return (
     <aside
-      className="sticky top-0 hidden h-screen w-[240px] shrink-0 flex-col border-r lg:flex"
+      className="hidden h-full w-[220px] shrink-0 flex-col overflow-y-auto border-r md:flex lg:w-[240px]"
       style={{ borderColor: "var(--line)", background: "var(--surface)" }}
     >
       <div className="px-5 pb-4 pt-6">

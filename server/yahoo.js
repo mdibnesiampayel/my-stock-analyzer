@@ -60,38 +60,99 @@ export async function searchYahoo(q, { quotes = 12, news = 0 } = {}) {
   return cached(`search:${query}:${quotes}:${news}`, TTL.search, async () => {
     const url = `${SEARCH}?q=${encodeURIComponent(query)}&quotesCount=${quotes}&newsCount=${news}&enableFuzzyQuery=true&enableNavLinks=false`;
     const data = await yahooJson(url);
-    const quotesOut = (data.quotes || [])
-      .filter((x) => x.symbol && ["EQUITY", "ETF", "INDEX", "MUTUALFUND"].includes(x.quoteType || "EQUITY"))
-      .map((x) => ({
-        symbol: x.symbol,
-        name: x.shortname || x.longname || x.symbol,
-        longName: x.longname || x.shortname || x.symbol,
-        exchange: x.exchDisp || x.exchange,
-        quoteType: x.quoteType,
-        type: x.typeDisp,
-        sector: x.sectorDisp || x.sector,
-        industry: x.industryDisp || x.industry,
-        country: x.region || null,
-        logo: logoUrl(x.symbol),
-      }));
+    const quotesOut = rankQuotes(
+      query,
+      (data.quotes || [])
+        .filter((x) => x.symbol && !String(x.symbol).includes("=") && !/-USD$/i.test(x.symbol))
+        .map((x) => ({
+          symbol: x.symbol,
+          name: x.shortname || x.longname || x.symbol,
+          longName: x.longname || x.shortname || x.symbol,
+          exchange: x.exchDisp || x.exchange,
+          quoteType: x.quoteType,
+          type: x.typeDisp,
+          sector: x.sectorDisp || x.sector,
+          industry: x.industryDisp || x.industry,
+          country: x.region || null,
+          logo: logoUrl(x.symbol),
+        }))
+    );
     const newsOut = (data.news || []).map(mapNews);
     return { quotes: quotesOut, news: newsOut };
   });
 }
 
+function rankQuotes(query, list) {
+  const q = String(query || "").trim().toUpperCase();
+  const score = (x) => {
+    const sym = String(x.symbol || "").toUpperCase();
+    const name = `${x.longName || ""} ${x.name || ""}`.toUpperCase();
+    const type = String(x.quoteType || "EQUITY").toUpperCase();
+    let s = 0;
+    if (type === "EQUITY") s += 25;
+    else if (type === "ETF") s += 8;
+    if (sym === q) s += 100;
+    else if (sym.startsWith(q)) s += 70;
+    else if (sym.includes(q)) s += 40;
+    if (name === q) s += 90;
+    else if (name.startsWith(q)) s += 55;
+    else if (name.includes(q)) s += 30;
+    return s;
+  };
+  return [...list].sort((a, b) => score(b) - score(a));
+}
+
 function mapNews(n) {
   const thumbs = n.thumbnail?.resolutions || [];
   const img = thumbs.find((t) => t.tag === "original") || thumbs[0];
+  const title = String(n.title || "").trim();
   return {
-    id: n.uuid || n.link || n.title,
-    title: n.title,
+    id: n.uuid || n.link || title,
+    title,
     publisher: n.publisher || n.provider || "Yahoo Finance",
     link: n.link,
     publishedAt: n.providerPublishTime ? n.providerPublishTime * 1000 : Date.now(),
     thumbnail: img?.url || null,
     related: n.relatedTickers || [],
+    summaryRaw: n.summary || n.description || "",
     type: n.type || "STORY",
   };
+}
+
+export function clipWords(text, max = 200) {
+  const words = String(text || "")
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return "";
+  if (words.length <= max) return words.join(" ");
+  return words.slice(0, max).join(" ");
+}
+
+export async function articleDescription(url, fallback = "") {
+  const fallbackClip = clipWords(fallback, 200);
+  if (!url) return fallbackClip;
+  return cached(`article:${url}`, TTL.news, async () => {
+    try {
+      const html = await fetchText(url, { timeout: 7000, retries: 0 });
+      const text = html
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/g, " ")
+        .replace(/&amp;/g, "&")
+        .replace(/&#39;/g, "'")
+        .replace(/&quot;/g, '"')
+        .replace(/&lt;/g, "<")
+        .replace(/&gt;/g, ">")
+        .replace(/\s+/g, " ")
+        .trim();
+      const body = clipWords(text, 200);
+      return body.split(/\s+/).filter(Boolean).length >= 40 ? body : fallbackClip || body;
+    } catch {
+      return fallbackClip;
+    }
+  });
 }
 
 export async function getChart(symbol, range = "1mo", interval = "1d") {

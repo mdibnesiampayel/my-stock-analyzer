@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Flame, Star, Sparkle, TrendingUp, TrendingDown } from "lucide-react";
-import { SearchBar } from "../components/SearchOverlay";
+import { RecentList, SearchBar } from "../components/SearchOverlay";
 import { StockCard, StockCardSkeleton } from "../components/StockCard";
 import { NewsCard } from "../components/NewsCard";
 import { ChangeBadge, EmptyState, ErrorBox, PrimaryButton, SectionLabel } from "../components/ui";
@@ -55,11 +55,12 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
         <h1 className="mt-0.5 text-[26px] font-semibold tracking-tight">Research, simply.</h1>
       </div>
 
-      <div className="lg:hidden">
+      <div className="space-y-2 md:hidden">
         <SearchBar onOpen={onSearch} />
+        <RecentList />
       </div>
 
-      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
         {(overview.data?.indices || []).slice(0, 4).map((ix) => (
           <div key={ix.symbol} className="card px-3 py-2.5">
             <div className="text-[11px] font-medium" style={{ color: "var(--muted)" }}>
@@ -75,7 +76,7 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
           Array.from({ length: 4 }).map((_, i) => <div key={i} className="skel h-[62px] rounded-2xl" />)}
       </div>
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-6">
+      <div className="md:grid md:grid-cols-[minmax(0,1fr)_280px] md:items-start md:gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:gap-6">
         <div>
           <div className="hide-scroll -mx-1 flex gap-1 overflow-x-auto px-1 pb-2 touch-pan-x">
             {TABS.map((t) => {
@@ -146,7 +147,7 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
           )}
         </div>
 
-        <div className="mt-6 lg:mt-0">
+        <div className="mt-6 md:mt-0">
           <div className="mb-2 flex items-center justify-between">
             <SectionLabel>{news.data?.personalized ? "From stocks you follow" : "Latest news"}</SectionLabel>
             <Link to="/news" className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>

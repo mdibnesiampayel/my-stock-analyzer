@@ -138,6 +138,7 @@ export interface NewsItem {
   link: string;
   publishedAt: number;
   thumbnail: string | null;
+  description?: string;
   related?: string[];
   category?: string;
   impact?: "positive" | "negative" | "neutral";

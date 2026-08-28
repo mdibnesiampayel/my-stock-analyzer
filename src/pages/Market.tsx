@@ -35,7 +35,7 @@ export default function Market() {
         {overview.loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[62px] lg:h-20" />)}
       </div>
 
-      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+      <div className="grid min-w-0 grid-cols-1 gap-5 md:grid-cols-2 md:gap-5 lg:gap-6">
         <ListBlock title="Hot today" rows={lists.data?.hot} loading={lists.loading} />
         <ListBlock title="Gainers" rows={lists.data?.gainers} loading={lists.loading} />
         <ListBlock title="Losers" rows={lists.data?.losers} loading={lists.loading} />
