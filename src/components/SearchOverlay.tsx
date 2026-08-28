@@ -130,9 +130,25 @@ export function SearchOverlay({ open, onClose }: { open: boolean; onClose: () =>
     nav(`/stock/${encodeURIComponent(symbol)}`);
   };
 
+  const term = q.trim();
+  const resolveExact = () => {
+    if (!term) return "";
+    const t = term.toUpperCase();
+    const bySym = hits.find((h) => h.symbol.toUpperCase() === t);
+    if (bySym) return bySym.symbol;
+    const lower = term.toLowerCase();
+    const byName = hits.find((h) => (h.longName || h.name || "").toLowerCase() === lower);
+    if (byName) return byName.symbol;
+    if (!/\s/.test(term)) return t;
+    return hits[0]?.symbol || t;
+  };
+  const exactSymbol = resolveExact();
+  const exactHit = hits.find((h) => h.symbol.toUpperCase() === exactSymbol.toUpperCase());
+  const related = hits.filter((h) => h.symbol.toUpperCase() !== exactSymbol.toUpperCase());
+
   const onSubmit = (e: FormEvent) => {
     e.preventDefault();
-    if (hits[0]?.symbol) go(hits[0].symbol);
+    if (exactSymbol) go(exactSymbol);
   };
 
   if (!open) return null;

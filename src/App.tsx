@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Route, Routes } from "react-router-dom";
 import { Search, Settings } from "lucide-react";
-import { Wordmark } from "./components/Logo";
+import { Mark, Wordmark } from "./components/Logo";
 import { BottomNav, NavList } from "./components/Nav";
 import { SearchOverlay } from "./components/SearchOverlay";
 import { useStore } from "./lib/store";
@@ -59,31 +59,29 @@ export default function App() {
       <SideNavBrand onSearch={() => setSearchOpen(true)} />
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header
-          className="flex shrink-0 items-center gap-3 border-b px-4 py-3 md:px-8"
+          className="flex shrink-0 items-center gap-2.5 border-b px-3 py-2.5 md:gap-3 md:px-8 md:py-3"
           style={{
             background: "color-mix(in srgb, var(--surface) 92%, transparent)",
             borderColor: "var(--line)",
             backdropFilter: "blur(16px)",
           }}
         >
-          <div className="md:hidden">
-            <Wordmark compact />
+          <div className="shrink-0 md:hidden" aria-label="My Stock Analyzer">
+            <Mark size={28} />
           </div>
-          <div className="hidden min-w-0 flex-1 md:block">
-            <button
-              type="button"
-              onClick={() => setSearchOpen(true)}
-              className="card flex w-full max-w-xl items-center gap-3 px-3.5 py-2.5 text-left"
-            >
-              <Search size={16} style={{ color: "var(--muted)" }} />
-              <span className="text-sm" style={{ color: "var(--muted)" }}>
-                Search stock or company
-              </span>
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="card flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left md:max-w-xl md:gap-3 md:px-3.5 md:py-2.5"
+          >
+            <Search size={16} className="shrink-0" style={{ color: "var(--muted)" }} />
+            <span className="truncate text-sm" style={{ color: "var(--muted)" }}>
+              Search stock or company
+            </span>
+          </button>
           <Link
             to="/settings"
-            className="ml-auto hidden rounded-xl p-2 md:inline-flex"
+            className="hidden shrink-0 rounded-xl p-2 md:inline-flex"
             style={{ color: "var(--muted)" }}
             aria-label="Settings"
           >

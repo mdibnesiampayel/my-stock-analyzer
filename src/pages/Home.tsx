@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { Flame, Star, Sparkle, TrendingUp, TrendingDown } from "lucide-react";
-import { RecentList, SearchBar } from "../components/SearchOverlay";
 import { StockCard, StockCardSkeleton } from "../components/StockCard";
 import { NewsCard } from "../components/NewsCard";
 import { ChangeBadge, EmptyState, ErrorBox, PrimaryButton, SectionLabel } from "../components/ui";
@@ -53,11 +52,6 @@ export default function Home({ onSearch }: { onSearch: () => void }) {
           {marketLabel(overview.data?.indices?.[0]?.marketState)}
         </div>
         <h1 className="mt-0.5 text-[26px] font-semibold tracking-tight">Research, simply.</h1>
-      </div>
-
-      <div className="space-y-2 md:hidden">
-        <SearchBar onOpen={onSearch} />
-        <RecentList />
       </div>
 
       <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
