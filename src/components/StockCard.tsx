@@ -18,33 +18,33 @@ export function StockCard({
   return (
     <Link
       to={`/stock/${encodeURIComponent(quote.symbol)}`}
-      className="card rise flex items-center gap-3 px-3 py-3 active:scale-[0.99]"
+      className="card rise flex min-w-0 items-center gap-2 px-2.5 py-2.5 active:scale-[0.99] sm:gap-3 sm:px-3 sm:py-3"
     >
       {rank != null && (
-        <div className="w-6 shrink-0 text-center text-xs font-bold" style={{ color: "var(--muted)" }}>
+        <div className="w-5 shrink-0 text-center text-xs font-bold sm:w-6" style={{ color: "var(--muted)" }}>
           {rank}
         </div>
       )}
-      <Avatar symbol={quote.symbol} logo={quote.logo} size={40} />
+      <Avatar symbol={quote.symbol} logo={quote.logo} size={36} />
       <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <div className="truncate text-[14px] font-semibold leading-tight">{quote.name}</div>
-        </div>
-        <div className="mt-0.5 flex items-center gap-2 text-[12px]" style={{ color: "var(--muted)" }}>
+        <div className="truncate text-[13px] font-semibold leading-tight sm:text-[14px]">{quote.name}</div>
+        <div className="mt-0.5 truncate text-[11px] sm:text-[12px]" style={{ color: "var(--muted)" }}>
           <span className="font-medium">{quote.symbol}</span>
-          {extra && <span>· {extra}</span>}
+          {extra ? <span> · {extra}</span> : null}
         </div>
       </div>
-      <div className="hidden sm:block">
+      <div className="hidden shrink-0 md:block">
         <Sparkline data={quote.spark} positive={pos} />
       </div>
-      <div className="text-right">
-        <div className="price text-[14px] font-semibold">{money.price(quote.price)}</div>
+      <div className="shrink-0 text-right">
+        <div className="price text-[13px] font-semibold sm:text-[14px]">{money.price(quote.price)}</div>
         <div className="mt-1 flex justify-end">
           <ChangeBadge value={quote.changePercent} />
         </div>
       </div>
-      <StarButton symbol={quote.symbol} />
+      <div className="shrink-0">
+        <StarButton symbol={quote.symbol} size={16} />
+      </div>
     </Link>
   );
 }

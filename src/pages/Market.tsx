@@ -10,7 +10,7 @@ export default function Market() {
   const lists = useApi<{ hot: Quote[]; gainers: Quote[]; losers: Quote[]; new: Quote[] }>("/api/market/lists");
 
   return (
-    <div className="space-y-5">
+    <div className="min-w-0 space-y-5 overflow-x-hidden">
       <div>
         <h1 className="text-[26px] font-semibold tracking-tight">Market</h1>
         <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -20,22 +20,22 @@ export default function Market() {
 
       {overview.error && <ErrorBox message={overview.error} onRetry={overview.reload} />}
 
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 lg:grid-cols-4">
         {(overview.data?.indices || []).map((ix) => (
-          <div key={ix.symbol} className="card p-4">
-            <div className="text-[12px] font-medium" style={{ color: "var(--muted)" }}>
+          <div key={ix.symbol} className="card min-w-0 px-3 py-2.5 lg:p-4">
+            <div className="truncate text-[11px] font-medium lg:text-[12px]" style={{ color: "var(--muted)" }}>
               {ix.name}
             </div>
-            <div className="mt-1 flex items-end justify-between">
-              <div className="price text-xl font-semibold">{formatIndex(ix.price)}</div>
+            <div className="mt-1 flex min-w-0 items-center justify-between gap-1">
+              <div className="price truncate text-[13px] font-semibold lg:text-xl">{formatIndex(ix.price)}</div>
               <ChangeBadge value={ix.changePercent} />
             </div>
           </div>
         ))}
-        {overview.loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}
+        {overview.loading && Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[62px] lg:h-20" />)}
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
         <ListBlock title="Hot today" rows={lists.data?.hot} loading={lists.loading} />
         <ListBlock title="Gainers" rows={lists.data?.gainers} loading={lists.loading} />
         <ListBlock title="Losers" rows={lists.data?.losers} loading={lists.loading} />
@@ -57,10 +57,10 @@ function ListBlock({
   extra?: boolean;
 }) {
   return (
-    <section>
-      <div className="mb-2 flex items-center justify-between">
-        <h2 className="text-[16px] font-semibold">{title}</h2>
-        <Link to="/" className="text-[12px] font-semibold" style={{ color: "var(--muted)" }}>
+    <section className="min-w-0">
+      <div className="mb-2 flex items-center justify-between gap-2">
+        <h2 className="truncate text-[16px] font-semibold">{title}</h2>
+        <Link to="/" className="shrink-0 text-[12px] font-semibold" style={{ color: "var(--muted)" }}>
           Open home
         </Link>
       </div>

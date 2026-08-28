@@ -62,8 +62,12 @@ export default function App() {
         <SideNavBrand onSearch={() => setSearchOpen(true)} />
         <div className="flex min-w-0 flex-1 flex-col">
           <header
-            className={`sticky top-0 z-20 items-center gap-3 px-4 py-3 lg:flex lg:px-8 ${hideTop ? "hidden" : "flex"}`}
-            style={{ background: "color-mix(in srgb, var(--bg) 90%, transparent)", backdropFilter: "blur(12px)" }}
+            className={`sticky top-0 z-20 items-center gap-3 border-b px-4 py-3 lg:flex lg:px-8 ${hideTop ? "hidden" : "flex"}`}
+            style={{
+              background: "color-mix(in srgb, var(--surface) 92%, transparent)",
+              borderColor: "var(--line)",
+              backdropFilter: "blur(16px)",
+            }}
           >
             {!hideTop && (
               <div className="lg:hidden">
