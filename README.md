@@ -21,7 +21,9 @@ Open the Vite URL. `/api` is proxied to the backend.
 
 ### Phone (Termux)
 
-Keep the project in Termux home (`$HOME`), not shared storage. Then:
+Keep the project in Termux home (`$HOME`), not shared storage.
+
+**First time only**
 
 ```bash
 pkg update && pkg install nodejs-lts git
@@ -29,14 +31,46 @@ cd ~
 git clone https://github.com/mdibnesiampayel/my-stock-analyzer.git
 cd my-stock-analyzer
 npm install
-termux-wake-lock
-npm run build
-npm start
 ```
 
-Open Chrome or Firefox on the same phone: `http://127.0.0.1:3001`
+**Run (two Termux sessions)**
 
-Leave Termux running. New session: from the Termux hamburger menu. Stop with `Ctrl+C`, then `termux-wake-unlock`.
+```bash
+termux-wake-lock
+```
+
+Session 1:
+
+```bash
+cd ~/my-stock-analyzer
+npm run server
+```
+
+Session 2 (Termux hamburger menu → New session):
+
+```bash
+cd ~/my-stock-analyzer
+npm run client
+```
+
+Open Chrome or Firefox on the same phone: **http://127.0.0.1:5173**
+
+That is the live app. Port `3001` is the API. If you previously ran `npm run build`, port `3001` can keep showing a frozen old copy — delete `dist` and use `5173`.
+
+**Update to the latest GitHub code**
+
+`git clone` does nothing if `~/my-stock-analyzer` already exists. Stop both sessions with `Ctrl+C`, then:
+
+```bash
+cd ~/my-stock-analyzer
+git pull origin main
+npm install
+rm -rf dist
+```
+
+Start `npm run server` and `npm run client` again, then refresh **http://127.0.0.1:5173**.
+
+Leave Termux running while you use the app. Stop with `Ctrl+C`, then `termux-wake-unlock`.
 
 ## What it does
 
